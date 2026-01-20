@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepFusionColor - Multispectral Image Fusion</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🔬 DeepFusionColor</h1>
+            <p class="subtitle">Multispectral Image Fusion with Deep Learning</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <h2>📁 Görüntü Yükleme</h2>
+                <div class="upload-container">
+                    <div class="upload-box">
+                        <h3>Görüntü 1 (IR/Thermal)</h3>
+                        <input type="file" id="image1Input" accept="image/*">
+                        <div id="preview1" class="image-preview"></div>
+                    </div>
+                    
+                    <div class="upload-box">
+                        <h3>Görüntü 2 (Visible)</h3>
+                        <input type="file" id="image2Input" accept="image/*">
+                        <div id="preview2" class="image-preview"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Method Selection -->
+            <section class="method-section">
+                <h2>🧪 Füzyon Yöntemi Seçimi</h2>
+                <div class="method-grid" id="methodGrid">
+                    <!-- JavaScript ile doldurulacak -->
+                </div>
+            </section>
+
+            <!-- Action Button -->
+            <section class="action-section">
+                <button id="fusionBtn" class="fusion-btn">
+                    🚀 Füzyon Yap
+                </button>
+                <div id="loadingIndicator" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Füzyon işleniyor...</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section hidden" id="resultsSection">
+                <h2>📊 Füzyon Sonuçları</h2>
+                
+                <!-- Fused Image -->
+                <div class="result-image-container">
+                    <h3>Birleştirilmiş Görüntü</h3>
+                    <div id="fusedImagePreview" class="fused-image-preview"></div>
+                </div>
+
+                <!-- Metrics -->
+                <div class="metrics-container">
+                    <h3>Kalite Metrikleri</h3>
+                    <div class="metrics-grid" id="metricsGrid">
+                        <!-- JavaScript ile doldurulacak -->
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="chart-container">
+                    <h3>Metrik Karşılaştırması</h3>
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Batch Test Section -->
+            <section class="batch-section">
+                <h2>🔄 Toplu Test (Batch Processing)</h2>
+                <div class="batch-controls">
+                    <label>
+                        <input type="checkbox" id="batchModeCheckbox">
+                        Toplu test modunu etkinleştir (tüm yöntemleri test et)
+                    </label>
+                </div>
+            </section>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>DeepFusionColor © 2026 | Bitirme Projesi</p>
+            <p>Yöntemler: DNN, CNN, Wavelet, LatentLRR, VIF, DenseFuse</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
