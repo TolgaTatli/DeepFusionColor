@@ -476,11 +476,125 @@ function displayBatchResults(results) {
         fusedPreview.appendChild(container);
     });
     
+    // Toplu test metrikleri tablosunu göster
+    displayBatchMetricsTable(results);
+    
     // Karşılaştırmalı chart çiz
     drawComparisonChart(results);
     
     // Scroll to results
     document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * Toplu test için metrik karşılaştırma tablosu
+ */
+function displayBatchMetricsTable(results) {
+    const metricsGrid = document.getElementById('metricsGrid');
+    metricsGrid.innerHTML = '';
+    
+    // Her yöntem için ayrı metrik kartları göster
+    results.forEach((result, index) => {
+        // Yöntem başlığı
+        const methodTitle = document.createElement('h3');
+        methodTitle.style.gridColumn = '1 / -1';
+        methodTitle.style.textAlign = 'center';
+        methodTitle.style.margin = '30px 0 15px 0';
+        methodTitle.style.color = '#667eea';
+        methodTitle.textContent = `${result.method}`;
+        metricsGrid.appendChild(methodTitle);
+        
+        // Metrik kartlarını oluştur (tek yöntem gibi)
+        const metrics = result.metrics;
+        const metricCards = [
+            { name: 'PSNR', value: metrics.psnr_avg.toFixed(4), unit: 'dB', desc: 'Yüksek = İyi' },
+            { name: 'SSIM', value: metrics.ssim_avg.toFixed(4), unit: '', desc: 'Yüksek = İyi' },
+            { name: 'MSE', value: metrics.mse_avg.toFixed(4), unit: '', desc: 'Düşük = İyi' },
+            { name: 'MI', value: metrics.mi_avg.toFixed(4), unit: '', desc: 'Yüksek = İyi' },
+            { name: 'Entropy', value: metrics.entropy.toFixed(4), unit: 'bits', desc: 'Yüksek = İyi' },
+            { name: 'SF', value: metrics.sf.toFixed(4), unit: '', desc: 'Yüksek = İyi' }
+        ];
+        
+        metricCards.forEach(metric => {
+            const card = document.createElement('div');
+            card.className = 'metric-card';
+            card.innerHTML = `
+                <h4>${metric.name}</h4>
+                <p class="metric-value">${metric.value}</p>
+                <p class="metric-unit">${metric.unit} ${metric.desc}</p>
+            `;
+            metricsGrid.appendChild(card);
+        });
+    });
+    
+    // Karşılaştırma tablosu başlığı
+    const comparisonTitle = document.createElement('h3');
+    comparisonTitle.style.gridColumn = '1 / -1';
+    comparisonTitle.style.textAlign = 'center';
+    comparisonTitle.style.margin = '40px 0 20px 0';
+    comparisonTitle.style.color = '#667eea';
+    comparisonTitle.textContent = '📊 Tüm Yöntemlerin Karşılaştırma Tablosu';
+    metricsGrid.appendChild(comparisonTitle);
+    
+    // Tablo oluştur
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.gridColumn = '1 / -1';
+    table.style.background = 'white';
+    table.style.borderRadius = '10px';
+    table.style.overflow = 'hidden';
+    table.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    
+    // Başlık satırı
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 15px; text-align: left;">Yöntem</th>
+            <th style="padding: 15px; text-align: center;">PSNR (dB)</th>
+            <th style="padding: 15px; text-align: center;">SSIM</th>
+            <th style="padding: 15px; text-align: center;">MSE</th>
+            <th style="padding: 15px; text-align: center;">MI</th>
+            <th style="padding: 15px; text-align: center;">Entropy</th>
+            <th style="padding: 15px; text-align: center;">SF</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+    
+    // Veri satırları
+    const tbody = document.createElement('tbody');
+    results.forEach((result, index) => {
+        const m = result.metrics;
+        const row = document.createElement('tr');
+        row.style.background = index % 2 === 0 ? '#f8f9fa' : 'white';
+        row.style.transition = 'background 0.3s';
+        row.onmouseover = () => row.style.background = '#e9ecef';
+        row.onmouseout = () => row.style.background = index % 2 === 0 ? '#f8f9fa' : 'white';
+        
+        // En iyi değerleri vurgula
+        const bestPSNR = Math.max(...results.map(r => r.metrics.psnr_avg));
+        const bestSSIM = Math.max(...results.map(r => r.metrics.ssim_avg));
+        const bestMSE = Math.min(...results.map(r => r.metrics.mse_avg));
+        const bestMI = Math.max(...results.map(r => r.metrics.mi_avg));
+        const bestEntropy = Math.max(...results.map(r => r.metrics.entropy));
+        const bestSF = Math.max(...results.map(r => r.metrics.sf));
+        
+        const highlightStyle = 'font-weight: bold; color: #667eea;';
+        
+        row.innerHTML = `
+            <td style="padding: 12px; font-weight: 600;">${result.method}</td>
+            <td style="padding: 12px; text-align: center; ${m.psnr_avg === bestPSNR ? highlightStyle : ''}">${m.psnr_avg.toFixed(2)}</td>
+            <td style="padding: 12px; text-align: center; ${m.ssim_avg === bestSSIM ? highlightStyle : ''}">${m.ssim_avg.toFixed(4)}</td>
+            <td style="padding: 12px; text-align: center; ${m.mse_avg === bestMSE ? highlightStyle : ''}">${m.mse_avg.toFixed(4)}</td>
+            <td style="padding: 12px; text-align: center; ${m.mi_avg === bestMI ? highlightStyle : ''}">${m.mi_avg.toFixed(4)}</td>
+            <td style="padding: 12px; text-align: center; ${m.entropy === bestEntropy ? highlightStyle : ''}">${m.entropy.toFixed(4)}</td>
+            <td style="padding: 12px; text-align: center; ${m.sf === bestSF ? highlightStyle : ''}">${m.sf.toFixed(2)}</td>
+        `;
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    
+    metricsGrid.appendChild(table);
 }
 
 /**
