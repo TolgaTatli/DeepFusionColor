@@ -144,7 +144,7 @@ def get_methods():
         },
         {
             'id': 'densefuse',
-            'name': 'DenseFuse (SOTA)',
+            'name': 'DenseFuse',
             'type': 'Deep Learning',
             'description': 'Dense blocks ile state-of-the-art fusion',
             'speed': 'Slow',
