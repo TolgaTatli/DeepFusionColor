@@ -17,11 +17,61 @@ Neden DenseFuse:
 - Feature reuse ile parametre verimliliği
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+
+
+class ImagePatchDataset(Dataset):
+    """
+    Görüntüleri patch'lere (parçalara) böler - training için
+    """
+    
+    def __init__(self, img1, img2, patch_size=64, stride=32):
+        """
+        Parametreler:
+        ------------
+        patch_size : int
+            Patch boyutu (kare)
+            
+        stride : int
+            Patch'ler arası adım
+        """
+        self.img1 = img1
+        self.img2 = img2
+        self.patch_size = patch_size
+        self.stride = stride
+        
+        # Patch koordinatlarını hesapla
+        h, w = img1.shape
+        self.patches = []
+        
+        for i in range(0, h - patch_size + 1, stride):
+            for j in range(0, w - patch_size + 1, stride):
+                self.patches.append((i, j))
+    
+    def __len__(self):
+        return len(self.patches)
+    
+    def __getitem__(self, idx):
+        i, j = self.patches[idx]
+        ps = self.patch_size
+        
+        # Patch'leri çıkar
+        patch1 = self.img1[i:i+ps, j:j+ps]
+        patch2 = self.img2[i:i+ps, j:j+ps]
+        
+        # Tensor'e çevir [1, H, W] formatında
+        patch1 = torch.tensor(patch1, dtype=torch.float32).unsqueeze(0)
+        patch2 = torch.tensor(patch2, dtype=torch.float32).unsqueeze(0)
+        
+        # Hedef: basit ortalama (self-supervised)
+        target = (patch1 + patch2) / 2.0
+        
+        return patch1, patch2, target
 
 
 class DenseBlock(nn.Module):
@@ -347,6 +397,46 @@ class DenseFusion:
             fused_image = fused_tensor.squeeze().cpu().numpy()
         
         return fused_image
+    
+    
+    def load_pretrained(self, model_path):
+        """
+        Pre-trained model yükler
+        
+        Parametreler:
+        ------------
+        model_path : str
+            Model dosya yolu (.pth)
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+        print(f"[DenseFuse] Loaded pre-trained model (trained on {checkpoint.get('train_samples', 'unknown')} samples)")
+    
+    
+    def predict(self, img1, img2):
+        """
+        Inference-only (eğitim yapmadan füzyon)
+        Pre-trained model ile direkt füzyon yapar
+        
+        Parametreler:
+        ------------
+        img1, img2 : numpy.ndarray
+            Birleştirilecek görüntüler
+            
+        Returns:
+        -------
+        numpy.ndarray : Füzyon edilmiş görüntü
+        """
+        self.model.eval()
+        with torch.no_grad():
+            img1_tensor = torch.tensor(img1, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            img2_tensor = torch.tensor(img2, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            
+            fused_tensor = self.model(img1_tensor, img2_tensor)
+            fused_image = fused_tensor.squeeze().cpu().numpy()
+        
+        return fused_image
 
 
 def densefuse_fusion(img1, img2, growth_rate=32, num_blocks=3, 
@@ -394,3 +484,139 @@ def densefuse_fusion(img1, img2, growth_rate=32, num_blocks=3,
                               epochs=epochs, batch_size=batch_size, 
                               lr=lr, patch_size=patch_size)
     return fusion_model.fuse(img1, img2)
+
+
+class DenseFuseTrainer:
+    """
+    DenseFuse Model Trainer (Pre-trained model desteği ile)
+    """
+    
+    def __init__(self, growth_rate=32, num_blocks=3, 
+                 num_layers_per_block=4, 
+                 epochs=25, batch_size=16, lr=0.0001, patch_size=64,
+                 pretrained_path=None):
+        """
+        Parametreler:
+        ------------
+        growth_rate : int
+            Dense block growth rate
+        num_blocks : int
+            Dense block sayısı
+        num_layers_per_block : int
+            Her block'taki katman sayısı
+        epochs : int
+            Eğitim epoch sayısı
+        batch_size : int
+            Batch boyutu
+        lr : float
+            Öğrenme oranı
+        patch_size : int
+            Patch boyutu
+        pretrained_path : str or None
+            Pre-trained model yolu (.pth file)
+        """
+        self.growth_rate = growth_rate
+        self.num_blocks = num_blocks
+        self.num_layers_per_block = num_layers_per_block
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lr = lr
+        self.patch_size = patch_size
+        
+        # Model oluştur
+        self.model = DenseFuseNet(growth_rate, num_blocks, num_layers_per_block)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+        
+        # Pre-trained model yükle (varsa)
+        if pretrained_path and os.path.exists(pretrained_path):
+            self.load_pretrained(pretrained_path)
+            print(f"[DenseFuse] Pre-trained model loaded from: {pretrained_path}")
+        else:
+            print(f"[DenseFuse] Model created: growth_rate={growth_rate}, blocks={num_blocks}, layers/block={num_layers_per_block}, epochs={epochs}")
+    
+    def train(self, train_images_ir, train_images_vis):
+        """
+        Modeli TNO dataset ile eğitir
+        
+        Parametreler:
+        ------------
+        train_images_ir : numpy.ndarray
+            Thermal görüntüler (N, H, W)
+        train_images_vis : numpy.ndarray
+            Visual görüntüler (N, H, W)
+        """
+        print(f"[DenseFuse] Training on {len(train_images_ir)} image pairs...")
+        
+        # Tüm görüntülerden patch'ler çıkar
+        all_patches_ir = []
+        all_patches_vis = []
+        all_targets = []
+        
+        for ir_img, vis_img in zip(train_images_ir, train_images_vis):
+            dataset = ImagePatchDataset(ir_img, vis_img, self.patch_size, self.patch_size//2)
+            for i in range(len(dataset)):
+                p1, p2, target = dataset[i]
+                all_patches_ir.append(p1.numpy())
+                all_patches_vis.append(p2.numpy())
+                all_targets.append(target.numpy())
+        
+        all_patches_ir = torch.tensor(np.array(all_patches_ir), dtype=torch.float32)
+        all_patches_vis = torch.tensor(np.array(all_patches_vis), dtype=torch.float32)
+        all_targets = torch.tensor(np.array(all_targets), dtype=torch.float32)
+        
+        # DataLoader oluştur
+        dataset = torch.utils.data.TensorDataset(all_patches_ir, all_patches_vis, all_targets)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        
+        # Loss ve optimizer
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # Training
+        self.model.train()
+        for epoch in range(self.epochs):
+            total_loss = 0
+            for patch1, patch2, target in dataloader:
+                patch1 = patch1.to(self.device)
+                patch2 = patch2.to(self.device)
+                target = target.to(self.device)
+                
+                fused = self.model(patch1, patch2)
+                loss = criterion(fused, target)
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            avg_loss = total_loss / len(dataloader)
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                print(f"  Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+        
+        print("[DenseFuse] Training complete!")
+    
+    def load_pretrained(self, model_path):
+        """
+        Pre-trained model yükler
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+        print(f"[DenseFuse] Loaded pre-trained model (trained on {checkpoint.get('train_samples', 'unknown')} samples)")
+    
+    def predict(self, img1, img2):
+        """
+        Inference-only (eğitim yapmadan füzyon)
+        """
+        self.model.eval()
+        with torch.no_grad():
+            img1_tensor = torch.tensor(img1, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            img2_tensor = torch.tensor(img2, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            
+            fused_tensor = self.model(img1_tensor, img2_tensor)
+            fused_image = fused_tensor.squeeze().cpu().numpy()
+        
+        return fused_image
+

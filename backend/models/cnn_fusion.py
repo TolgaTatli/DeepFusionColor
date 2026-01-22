@@ -10,6 +10,7 @@ Nasıl Çalışır:
 - Decoder ile füzyon edilmiş görüntüyü oluşturur
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -289,6 +290,46 @@ class CNNFusion:
             fused_image = fused_tensor.squeeze().cpu().numpy()
         
         return fused_image
+    
+    
+    def load_pretrained(self, model_path):
+        """
+        Pre-trained model yükler
+        
+        Parametreler:
+        ------------
+        model_path : str
+            Model dosya yolu (.pth)
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+        print(f"[CNN] Loaded pre-trained model (trained on {checkpoint.get('train_samples', 'unknown')} samples)")
+    
+    
+    def predict(self, img1, img2):
+        """
+        Inference-only (eğitim yapmadan füzyon)
+        Pre-trained model ile direkt füzyon yapar
+        
+        Parametreler:
+        ------------
+        img1, img2 : numpy.ndarray
+            Birleştirilecek görüntüler
+            
+        Returns:
+        -------
+        numpy.ndarray : Füzyon edilmiş görüntü
+        """
+        self.model.eval()
+        with torch.no_grad():
+            img1_tensor = torch.tensor(img1, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            img2_tensor = torch.tensor(img2, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            
+            fused_tensor = self.model(img1_tensor, img2_tensor)
+            fused_image = fused_tensor.squeeze().cpu().numpy()
+        
+        return fused_image
 
 
 def cnn_fusion(img1, img2, num_filters=[16, 32, 64], kernel_size=3, 
@@ -330,3 +371,135 @@ def cnn_fusion(img1, img2, num_filters=[16, 32, 64], kernel_size=3,
                             epochs=epochs, batch_size=batch_size, 
                             lr=lr, patch_size=patch_size)
     return fusion_model.fuse(img1, img2)
+
+
+class CNNFusionTrainer:
+    """
+    CNN Fusion Model Trainer (Pre-trained model desteği ile)
+    """
+    
+    def __init__(self, num_filters=[16, 32, 64], kernel_size=3, 
+                 epochs=20, batch_size=16, lr=0.001, patch_size=64,
+                 pretrained_path=None):
+        """
+        Parametreler:
+        ------------
+        num_filters : list
+            Her katmandaki filtre sayısı
+        kernel_size : int
+            Kernel boyutu
+        epochs : int
+            Eğitim epoch sayısı
+        batch_size : int
+            Batch boyutu
+        lr : float
+            Öğrenme oranı
+        patch_size : int
+            Patch boyutu
+        pretrained_path : str or None
+            Pre-trained model yolu (.pth file)
+        """
+        self.num_filters = num_filters
+        self.kernel_size = kernel_size
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lr = lr
+        self.patch_size = patch_size
+        
+        # Model oluştur
+        self.model = CNNFusionNet(num_filters, kernel_size)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+        
+        # Pre-trained model yükle (varsa)
+        if pretrained_path and os.path.exists(pretrained_path):
+            self.load_pretrained(pretrained_path)
+            print(f"[CNN Fusion] Pre-trained model loaded from: {pretrained_path}")
+        else:
+            print(f"[CNN Fusion] Model created: filters={num_filters}, kernel={kernel_size}, epochs={epochs}")
+    
+    def train(self, train_images_ir, train_images_vis):
+        """
+        Modeli TNO dataset ile eğitir
+        
+        Parametreler:
+        ------------
+        train_images_ir : numpy.ndarray
+            Thermal görüntüler (N, H, W)
+        train_images_vis : numpy.ndarray
+            Visual görüntüler (N, H, W)
+        """
+        print(f"[CNN Fusion] Training on {len(train_images_ir)} image pairs...")
+        
+        # Tüm görüntülerden patch'ler çıkar
+        all_patches_ir = []
+        all_patches_vis = []
+        all_targets = []
+        
+        for ir_img, vis_img in zip(train_images_ir, train_images_vis):
+            dataset = ImagePatchDataset(ir_img, vis_img, self.patch_size, self.patch_size//2)
+            for i in range(len(dataset)):
+                p1, p2, target = dataset[i]
+                all_patches_ir.append(p1.numpy())
+                all_patches_vis.append(p2.numpy())
+                all_targets.append(target.numpy())
+        
+        all_patches_ir = torch.tensor(np.array(all_patches_ir), dtype=torch.float32)
+        all_patches_vis = torch.tensor(np.array(all_patches_vis), dtype=torch.float32)
+        all_targets = torch.tensor(np.array(all_targets), dtype=torch.float32)
+        
+        # DataLoader oluştur
+        dataset = torch.utils.data.TensorDataset(all_patches_ir, all_patches_vis, all_targets)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        
+        # Loss ve optimizer
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # Training
+        self.model.train()
+        for epoch in range(self.epochs):
+            total_loss = 0
+            for patch1, patch2, target in dataloader:
+                patch1 = patch1.to(self.device)
+                patch2 = patch2.to(self.device)
+                target = target.to(self.device)
+                
+                fused = self.model(patch1, patch2)
+                loss = criterion(fused, target)
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            avg_loss = total_loss / len(dataloader)
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                print(f"  Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+        
+        print("[CNN Fusion] Training complete!")
+    
+    def load_pretrained(self, model_path):
+        """
+        Pre-trained model yükler
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+        print(f"[CNN] Loaded pre-trained model (trained on {checkpoint.get('train_samples', 'unknown')} samples)")
+    
+    def predict(self, img1, img2):
+        """
+        Inference-only (eğitim yapmadan füzyon)
+        """
+        self.model.eval()
+        with torch.no_grad():
+            img1_tensor = torch.tensor(img1, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            img2_tensor = torch.tensor(img2, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+            
+            fused_tensor = self.model(img1_tensor, img2_tensor)
+            fused_image = fused_tensor.squeeze().cpu().numpy()
+        
+        return fused_image
+

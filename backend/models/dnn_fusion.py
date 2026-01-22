@@ -9,6 +9,7 @@ Nasıl Çalışır:
 - Füzyon edilmiş pikseli tahmin eder
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -201,6 +202,133 @@ class DNNFusion:
                 outputs.append(output.cpu())
             
             # Birleştir ve reshape et
+            fused_flat = torch.cat(outputs, dim=0).numpy().flatten()
+            fused_image = fused_flat.reshape(h, w)
+        
+        return fused_image
+
+
+class DNNFusionTrainer:
+    """
+    DNN Fusion Model Trainer (Pre-trained model desteği ile)
+    """
+    
+    def __init__(self, hidden_sizes=[256, 128, 64], epochs=15, 
+                 batch_size=1024, lr=0.001, pretrained_path=None):
+        """
+        Parametreler:
+        ------------
+        hidden_sizes : list
+            Gizli katman boyutları
+        epochs : int
+            Eğitim epoch sayısı
+        batch_size : int
+            Batch boyutu
+        lr : float
+            Öğrenme oranı
+        pretrained_path : str or None
+            Pre-trained model yolu (.pth file)
+        """
+        self.hidden_sizes = hidden_sizes
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lr = lr
+        
+        # Model oluştur
+        self.model = DNNFusionNet(hidden_sizes)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+        
+        # Pre-trained model yükle (varsa)
+        if pretrained_path and os.path.exists(pretrained_path):
+            self.load_pretrained(pretrained_path)
+            print(f"[DNN Fusion] Pre-trained model loaded from: {pretrained_path}")
+        else:
+            print(f"[DNN Fusion] Model created: hidden={hidden_sizes}, epochs={epochs}")
+    
+    def train(self, train_images_ir, train_images_vis):
+        """
+        Modeli TNO dataset ile eğitir
+        
+        Parametreler:
+        ------------
+        train_images_ir : numpy.ndarray
+            Thermal görüntüler (N, H, W)
+        train_images_vis : numpy.ndarray
+            Visual görüntüler (N, H, W)
+        """
+        print(f"[DNN Fusion] Training on {len(train_images_ir)} image pairs...")
+        
+        # Tüm görüntüleri flatten edip birleştir
+        all_ir_pixels = []
+        all_vis_pixels = []
+        
+        for ir_img, vis_img in zip(train_images_ir, train_images_vis):
+            all_ir_pixels.append(ir_img.flatten())
+            all_vis_pixels.append(vis_img.flatten())
+        
+        all_ir = np.concatenate(all_ir_pixels)
+        all_vis = np.concatenate(all_vis_pixels)
+        
+        # Dataset oluştur
+        dataset = ImagePairDataset(all_ir.reshape(-1), all_vis.reshape(-1))
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        
+        # Loss ve optimizer
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # Training loop
+        self.model.train()
+        for epoch in range(self.epochs):
+            total_loss = 0
+            for batch_x, batch_y in dataloader:
+                batch_x = batch_x.to(self.device)
+                batch_y = batch_y.to(self.device)
+                
+                outputs = self.model(batch_x)
+                loss = criterion(outputs, batch_y)
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            avg_loss = total_loss / len(dataloader)
+            if (epoch + 1) % 3 == 0 or epoch == 0:
+                print(f"  Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+        
+        print("[DNN Fusion] Training complete!")
+    
+    def load_pretrained(self, model_path):
+        """
+        Pre-trained model yükler
+        """
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+        print(f"[DNN] Loaded pre-trained model (trained on {checkpoint.get('train_samples', 'unknown')} samples)")
+    
+    def predict(self, img1, img2):
+        """
+        Inference-only (eğitim yapmadan füzyon)
+        """
+        h, w = img1.shape
+        
+        self.model.eval()
+        with torch.no_grad():
+            img1_flat = torch.tensor(img1.flatten(), dtype=torch.float32)
+            img2_flat = torch.tensor(img2.flatten(), dtype=torch.float32)
+            inputs = torch.stack([img1_flat, img2_flat], dim=1).to(self.device)
+            
+            # Batch halinde işle
+            outputs = []
+            for i in range(0, len(inputs), self.batch_size):
+                batch = inputs[i:i+self.batch_size]
+                output = self.model(batch)
+                outputs.append(output.cpu())
+            
             fused_flat = torch.cat(outputs, dim=0).numpy().flatten()
             fused_image = fused_flat.reshape(h, w)
         

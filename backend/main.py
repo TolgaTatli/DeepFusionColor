@@ -20,11 +20,11 @@ from flask_cors import CORS
 
 # Kendi modüllerimizi import et
 from models.wavelet_fusion import wavelet_fusion
-from models.dnn_fusion import dnn_fusion
-from models.cnn_fusion import cnn_fusion
+from models.dnn_fusion import dnn_fusion, DNNFusionTrainer
+from models.cnn_fusion import cnn_fusion, CNNFusionTrainer
 from models.latentlrr_fusion import latentlrr_fusion
 from models.vif_fusion import vif_fusion
-from models.densefuse_fusion import densefuse_fusion
+from models.densefuse_fusion import densefuse_fusion, DenseFuseTrainer
 from metrics.evaluation_metrics import calculate_all_metrics
 from utils.image_utils import load_image, save_image, preprocess_for_fusion, convert_to_uint8
 
@@ -35,6 +35,70 @@ CORS(app)  # Cross-origin isteklere izin ver
 # Sonuçları kaydetme dizini
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# Pre-trained modeller dizini
+MODELS_DIR = os.path.join(os.path.dirname(__file__), 'trained_models')
+
+# Global model cache (her istek için yeniden yüklemek yerine)
+PRETRAINED_MODELS = {
+    'dnn': None,
+    'cnn': None,
+    'densefuse': None
+}
+
+
+def load_pretrained_models():
+    """
+    Pre-trained modelleri yükler (varsa)
+    """
+    print("\n[STARTUP] Checking for pre-trained models...")
+    # DNN model
+    dnn_path = os.path.join(MODELS_DIR, 'dnn_fusion_model.pth')
+    if os.path.exists(dnn_path):
+        try:
+            PRETRAINED_MODELS['dnn'] = DNNFusionTrainer(
+                hidden_sizes=[256, 128, 64],
+                pretrained_path=dnn_path
+            )
+            print("  ✅ DNN model loaded")
+        except Exception as e:
+            print(f"  ⚠️ DNN model load failed: {e}")
+    else:
+        print("  ⚠️ DNN model not found (will train on-the-fly)")
+    
+    # 
+    # CNN model
+    cnn_path = os.path.join(MODELS_DIR, 'cnn_fusion_model.pth')
+    if os.path.exists(cnn_path):
+        try:
+            PRETRAINED_MODELS['cnn'] = CNNFusionTrainer(
+                num_filters=[16, 32, 64],
+                kernel_size=3,
+                pretrained_path=cnn_path
+            )
+            print("  ✅ CNN model loaded")
+        except Exception as e:
+            print(f"  ⚠️ CNN model load failed: {e}")
+    else:
+        print("  ⚠️ CNN model not found (will train on-the-fly)")
+    
+    # DenseFuse model
+    densefuse_path = os.path.join(MODELS_DIR, 'densefuse_model.pth')
+    if os.path.exists(densefuse_path):
+        try:
+            PRETRAINED_MODELS['densefuse'] = DenseFuseTrainer(
+                growth_rate=16,
+                num_blocks=3,
+                num_layers_per_block=4,
+                pretrained_path=densefuse_path
+            )
+            print("  ✅ DenseFuse model loaded")
+        except Exception as e:
+            print(f"  ⚠️ DenseFuse model load failed: {e}")
+    else:
+        print("  ⚠️ DenseFuse model not found (will train on-the-fly)")
+    
+    print("[STARTUP] Ready!\n")
 
 
 def image_to_base64(image_array):
@@ -186,15 +250,33 @@ def perform_fusion():
         if method == 'wavelet':
             fused = wavelet_fusion(img1, img2, **params)
         elif method == 'dnn':
-            fused = dnn_fusion(img1, img2, **params)
+            # Pre-trained model varsa kullan, yoksa on-the-fly training
+            if PRETRAINED_MODELS['dnn']:
+                print("[API] Using pre-trained DNN model")
+                fused = PRETRAINED_MODELS['dnn'].predict(img1, img2)
+            else:
+                print("[API] No pre-trained DNN, training on-the-fly (slow!)")
+                fused = dnn_fusion(img1, img2, **params)
         elif method == 'cnn':
-            fused = cnn_fusion(img1, img2, **params)
+            # Pre-trained model varsa kullan, yoksa on-the-fly training
+            if PRETRAINED_MODELS['cnn']:
+                print("[API] Using pre-trained CNN model")
+                fused = PRETRAINED_MODELS['cnn'].predict(img1, img2)
+            else:
+                print("[API] No pre-trained CNN, training on-the-fly (slow!)")
+                fused = cnn_fusion(img1, img2, **params)
         elif method == 'latentlrr':
             fused = latentlrr_fusion(img1, img2, **params)
         elif method == 'vif':
             fused = vif_fusion(img1, img2, **params)
         elif method == 'densefuse':
-            fused = densefuse_fusion(img1, img2, **params)
+            # Pre-trained model varsa kullan, yoksa on-the-fly training
+            if PRETRAINED_MODELS['densefuse']:
+                print("[API] Using pre-trained DenseFuse model")
+                fused = PRETRAINED_MODELS['densefuse'].predict(img1, img2)
+            else:
+                print("[API] No pre-trained DenseFuse, training on-the-fly (slow!)")
+                fused = densefuse_fusion(img1, img2, **params)
         else:
             return jsonify({'error': f'Unknown method: {method}'}), 400
         
@@ -279,6 +361,11 @@ if __name__ == '__main__':
     print("="*60)
     print("DeepFusionColor Backend API")
     print("="*60)
+    
+    # Pre-trained modelleri yükle
+    load_pretrained_models()
+    
+    # Flask uygulamasını başlat
     print("Available endpoints:")
     print("  GET  /health     - Health check")
     print("  GET  /methods    - List fusion methods")
@@ -289,4 +376,4 @@ if __name__ == '__main__':
     print("="*60 + "\n")
     
     # Development server (production için gunicorn kullan)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

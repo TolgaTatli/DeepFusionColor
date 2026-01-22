@@ -22,13 +22,19 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 ENV/
 env/
+backend/venv311/
 
 # PyTorch
 *.pth
 *.pt
 checkpoints/
+
+# Trained Models (opsiyonel: modelleri commit etmek istersen bunu kaldır)
+backend/trained_models/*.pth
+backend/trained_models/*.pt
 
 # Jupyter Notebook
 .ipynb_checkpoints
