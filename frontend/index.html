@@ -6,6 +6,7 @@
     <title>DeepFusionColor - Multispectral Image Fusion</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -77,6 +78,16 @@
                     <h3>Metrik Karşılaştırması</h3>
                     <canvas id="metricsChart"></canvas>
                 </div>
+            </section>
+
+            <!-- AI Analysis Section -->
+            <section class="ai-analysis-section hidden" id="aiAnalysisSection">
+                <h2>🤖 AI Analysis <span id="typingIndicator" class="typing-indicator">▋</span></h2>
+                <div id="analysisStatus" class="analysis-status">
+                    <div class="spinner-small"></div>
+                    <span>Analyzing with Vision AI...</span>
+                </div>
+                <div id="analysisContent" class="analysis-panel streaming"></div>
             </section>
 
             <!-- Batch Test Section -->

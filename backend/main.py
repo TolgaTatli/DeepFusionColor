@@ -13,9 +13,11 @@ import os
 import sys
 import numpy as np
 import base64
+import json
+import time
 from io import BytesIO
 from PIL import Image
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
 # Kendi modüllerimizi import et
@@ -27,6 +29,13 @@ from models.vif_fusion import vif_fusion
 from models.densefuse_fusion import densefuse_fusion, DenseFuseTrainer
 from metrics.evaluation_metrics import calculate_all_metrics
 from utils.image_utils import load_image, save_image, preprocess_for_fusion, convert_to_uint8
+from utils.session_manager import (
+    generate_session_id,
+    store_session_data,
+    load_session_data,
+    cleanup_session,
+    cleanup_old_sessions
+)
 
 # Flask app oluştur
 app = Flask(__name__)
@@ -45,6 +54,23 @@ PRETRAINED_MODELS = {
     'cnn': None,
     'densefuse': None
 }
+
+# Global Vision-LLM analyzer (lazy loading)
+VISION_ANALYZER = None
+
+def get_vision_analyzer():
+    """Get or create Vision-LLM analyzer instance."""
+    global VISION_ANALYZER
+    if VISION_ANALYZER is None:
+        try:
+            from llm.analyzer import VisionFusionAnalyzer
+            VISION_ANALYZER = VisionFusionAnalyzer()
+            print("  ✅ Vision-LLM analyzer initialized (will load on first use)")
+        except Exception as e:
+            print(f"  ⚠️ Vision-LLM analyzer initialization failed: {e}")
+            print("  ℹ️ Streaming analysis will not be available")
+            return None
+    return VISION_ANALYZER
 
 
 def load_pretrained_models():
@@ -294,11 +320,28 @@ def perform_fusion():
         
         print(f"[API] Fusion completed successfully!")
         
+        # Store session data for streaming analysis
+        session_id = generate_session_id()
+        try:
+            # Convert to PIL images for storage
+            img1_pil = Image.fromarray(convert_to_uint8(img1))
+            img2_pil = Image.fromarray(convert_to_uint8(img2))
+            fused_pil = Image.fromarray(convert_to_uint8(fused))
+            
+            # Store for streaming analysis
+            store_session_data(session_id, img1_pil, img2_pil, fused_pil, metrics_json, method)
+            print(f"[API] Session {session_id} stored for streaming analysis")
+        except Exception as e:
+            print(f"[API Warning] Failed to store session: {e}")
+            session_id = None
+        
         return jsonify({
             'success': True,
             'fused_image': fused_base64,
             'metrics': metrics_json,
-            'method': method
+            'method': method,
+            'session_id': session_id,
+            'analysis_url': f'/stream-analysis/{session_id}' if session_id else None
         })
         
     except Exception as e:
@@ -346,14 +389,106 @@ def calculate_metrics():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/stream-analysis/<session_id>')
+def stream_analysis(session_id):
+    """
+    Server-Sent Events endpoint for streaming AI analysis.
+    
+    Args:
+        session_id: Session identifier from /fusion response
+    
+    Returns:
+        SSE stream with analysis chunks
+    """
+    def generate():
+        try:
+            # Load session data
+            session_data = load_session_data(session_id)
+            if session_data is None:
+                error_data = json.dumps({
+                    'type': 'error',
+                    'message': 'Session not found or expired'
+                })
+                yield f'data: {error_data}\n\n'
+                return
+            
+            ir_img, vis_img, fused_img, metrics, method = session_data
+            
+            # Get analyzer
+            analyzer = get_vision_analyzer()
+            if analyzer is None:
+                error_data = json.dumps({
+                    'type': 'error',
+                    'message': 'Vision-LLM analyzer not available'
+                })
+                yield f'data: {error_data}\n\n'
+                return
+            
+            # Send start signal
+            yield 'data: {"type": "start"}\n\n'
+            
+            # Stream analysis
+            print(f"[API] Starting streaming analysis for session {session_id}")
+            for text_chunk in analyzer.analyze_fusion_streaming(
+                ir_img, vis_img, fused_img, metrics, method
+            ):
+                if text_chunk:
+                    data = json.dumps({
+                        'type': 'chunk',
+                        'text': text_chunk
+                    })
+                    yield f'data: {data}\n\n'
+                    time.sleep(0.01)  # Small delay for smooth rendering
+            
+            # Send done signal
+            yield 'data: {"type": "done"}\n\n'
+            print(f"[API] Streaming analysis completed for session {session_id}")
+            
+            # Cleanup session
+            cleanup_session(session_id)
+            
+        except Exception as e:
+            print(f"[API Error] Streaming analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
+            error_data = json.dumps({
+                'type': 'error',
+                'message': f'Analysis failed: {str(e)}'
+            })
+            yield f'data: {error_data}\n\n'
+            
+            # Cleanup on error
+            try:
+                cleanup_session(session_id)
+            except:
+                pass
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive'
+        }
+    )
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """
     API sağlık kontrolü
     """
+    # Cleanup old sessions
+    cleanup_old_sessions()
+    
+    analyzer = get_vision_analyzer()
+    analyzer_status = 'available' if analyzer else 'unavailable'
+    
     return jsonify({
         'status': 'healthy',
-        'message': 'DeepFusionColor API is running!'
+        'message': 'DeepFusionColor API is running!',
+        'vision_llm': analyzer_status
     })
 
 
@@ -365,12 +500,16 @@ if __name__ == '__main__':
     # Pre-trained modelleri yükle
     load_pretrained_models()
     
+    # Initialize Vision-LLM analyzer
+    get_vision_analyzer()
+    
     # Flask uygulamasını başlat
     print("Available endpoints:")
-    print("  GET  /health     - Health check")
-    print("  GET  /methods    - List fusion methods")
-    print("  POST /fusion     - Perform image fusion")
-    print("  POST /metrics    - Calculate metrics")
+    print("  GET  /health              - Health check")
+    print("  GET  /methods             - List fusion methods")
+    print("  POST /fusion              - Perform image fusion")
+    print("  POST /metrics             - Calculate metrics")
+    print("  GET  /stream-analysis/:id - Stream AI analysis (SSE)")
     print("="*60)
     print("Starting server on http://localhost:5000")
     print("="*60 + "\n")

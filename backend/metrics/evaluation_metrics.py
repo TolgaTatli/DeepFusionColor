@@ -1,60 +1,19 @@
-"""
-Görüntü Füzyon Kalite Metrikleri
-=================================
-Füzyon sonuçlarını değerlendirmek için kullanılan metrikler.
-
-Metrikler:
-1. PSNR (Peak Signal-to-Noise Ratio): Sinyal-gürültü oranı
-2. SSIM (Structural Similarity Index): Yapısal benzerlik
-3. MSE (Mean Squared Error): Ortalama kare hata
-4. MIS (Mutual Information Score): Karşılıklı bilgi skoru
-5. EN (Entropy): Bilgi içeriği
-6. SF (Spatial Frequency): Uzaysal frekans
-"""
-
 import numpy as np
-from skimage.metrics import structural_similarity as ssim_calc
-from skimage.metrics import peak_signal_noise_ratio as psnr_calc
-from skimage.metrics import mean_squared_error as mse_calc
+from skimage.metrics import structural_similarity , peak_signal_noise_ratio, mean_squared_error
 from scipy.stats import entropy
 
 
 def psnr(img_reference, img_fused, data_range=1.0):
     """
-    PSNR - Peak Signal-to-Noise Ratio
-    
-    Sinyal-gürültü oranını ölçer. Yüksek değer = iyi kalite
-    
-    Formül: PSNR = 10 * log10(MAX^2 / MSE)
-    - MAX: Maksimum piksel değeri
-    - MSE: Mean Squared Error
-    
-    Parametreler:
-    ------------
-    img_reference : numpy.ndarray
-        Referans görüntü (genelde kaynak görüntülerden biri)
-    img_fused : numpy.ndarray
-        Füzyon edilmiş görüntü
-    data_range : float
-        Veri aralığı (1.0 = [0,1], 255 = [0,255])
-        
     Returns:
     -------
     float : PSNR değeri (dB cinsinden)
             20+ = iyi
             30+ = çok iyi
             40+ = mükemmel
-            
-    Etki: Piksel değeri farkına çok hassas
-          Küçük değişiklikler bile PSNR'yi düşürür
-          
-    Örnek:
-    ------
-    psnr_value = psnr(thermal_img, fused_img)
-    print(f"PSNR: {psnr_value:.2f} dB")
     """
     try:
-        value = psnr_calc(img_reference, img_fused, data_range=data_range)
+        value = peak_signal_noise_ratio(img_reference, img_fused, data_range=data_range)
         return value
     except Exception as e:
         print(f"[PSNR Error] {e}")
@@ -63,43 +22,15 @@ def psnr(img_reference, img_fused, data_range=1.0):
 
 def ssim(img_reference, img_fused, data_range=1.0):
     """
-    SSIM - Structural Similarity Index
-    
-    Yapısal benzerliği ölçer (insan görsel algısına yakın).
-    Luminance, contrast ve structure'ı dikkate alır.
-    
-    Formül: SSIM(x,y) = [l(x,y)]^α * [c(x,y)]^β * [s(x,y)]^γ
-    - l: luminance comparison
-    - c: contrast comparison
-    - s: structure comparison
-    
-    Parametreler:
-    ------------
-    img_reference : numpy.ndarray
-        Referans görüntü
-    img_fused : numpy.ndarray
-        Füzyon edilmiş görüntü
-    data_range : float
-        Veri aralığı
-        
     Returns:
     -------
     float : SSIM değeri [-1, 1] aralığında
             0.8+ = iyi
             0.9+ = çok iyi
             0.95+ = mükemmel
-            
-    Etki: İnsan görsel algısına yakın
-          Yapısal değişikliklere hassas
-          PSNR'den daha güvenilir (literatürde)
-          
-    Örnek:
-    ------
-    ssim_value = ssim(thermal_img, fused_img)
-    print(f"SSIM: {ssim_value:.4f}")
     """
     try:
-        value = ssim_calc(img_reference, img_fused, data_range=data_range)
+        value = structural_similarity(img_reference, img_fused, data_range=data_range)
         return value
     except Exception as e:
         print(f"[SSIM Error] {e}")
@@ -108,19 +39,6 @@ def ssim(img_reference, img_fused, data_range=1.0):
 
 def mse(img_reference, img_fused):
     """
-    MSE - Mean Squared Error
-    
-    Ortalama kare hatayı ölçer. Düşük değer = iyi
-    
-    Formül: MSE = (1/N) * Σ(reference - fused)^2
-    
-    Parametreler:
-    ------------
-    img_reference : numpy.ndarray
-        Referans görüntü
-    img_fused : numpy.ndarray
-        Füzyon edilmiş görüntü
-        
     Returns:
     -------
     float : MSE değeri
@@ -128,17 +46,9 @@ def mse(img_reference, img_fused):
             0.001 altı = mükemmel
             0.01 altı = çok iyi
             0.1 altı = iyi
-            
-    Etki: Piksel seviyesinde farkı ölçer
-          Yapısal bilgiyi dikkate almaz
-          
-    Örnek:
-    ------
-    mse_value = mse(thermal_img, fused_img)
-    print(f"MSE: {mse_value:.6f}")
     """
     try:
-        value = mse_calc(img_reference, img_fused)
+        value = mean_squared_error(img_reference, img_fused)
         return value
     except Exception as e:
         print(f"[MSE Error] {e}")
@@ -147,29 +57,6 @@ def mse(img_reference, img_fused):
 
 def mutual_information(img1, img2, bins=256):
     """
-    MIS - Mutual Information Score
-    
-    İki görüntü arasındaki karşılıklı bilgi miktarını ölçer.
-    Yüksek değer = daha fazla ortak bilgi
-    
-    Formül: MI(X,Y) = H(X) + H(Y) - H(X,Y)
-    - H(X): X'in entropisi
-    - H(Y): Y'nin entropisi
-    - H(X,Y): Joint entropy
-    
-    Parametreler:
-    ------------
-    img1, img2 : numpy.ndarray
-        Karşılaştırılacak görüntüler
-    bins : int
-        Histogram bins sayısı
-        Düşük bins = hızlı ama kaba
-        Yüksek bins = yavaş ama detaylı
-        
-        Etki: 128 = hızlı
-              256 = dengeli (önerilen)
-              512 = detaylı
-        
     Returns:
     -------
     float : Mutual information değeri
@@ -177,13 +64,6 @@ def mutual_information(img1, img2, bins=256):
             1+ = iyi
             2+ = çok iyi
             
-    Etki: Füzyonun ne kadar bilgi koruduğunu gösterir
-          Registration kalitesi için de kullanılır
-          
-    Örnek:
-    ------
-    mi_value = mutual_information(thermal_img, fused_img)
-    print(f"MI: {mi_value:.4f}")
     """
     try:
         # [0,1] aralığındaysa [0,255]'e çevir
@@ -226,21 +106,6 @@ def mutual_information(img1, img2, bins=256):
 
 def image_entropy(image, bins=256):
     """
-    EN - Entropy (Bilgi İçeriği)
-    
-    Görüntünün bilgi miktarını ölçer.
-    Yüksek entropy = daha fazla bilgi/detay
-    
-    Formül: H = -Σ p(i) * log2(p(i))
-    - p(i): i'nci piksel değerinin olasılığı
-    
-    Parametreler:
-    ------------
-    image : numpy.ndarray
-        Görüntü
-    bins : int
-        Histogram bins
-        
     Returns:
     -------
     float : Entropy değeri (bits cinsinden)
@@ -248,14 +113,6 @@ def image_entropy(image, bins=256):
             6+ = iyi bilgi
             7+ = yüksek bilgi/detay
             
-    Etki: Füzyonun ne kadar detay eklediğini gösterir
-          Yüksek entropy genelde daha iyi (daha fazla bilgi)
-          
-    Örnek:
-    ------
-    en_fused = image_entropy(fused_img)
-    en_thermal = image_entropy(thermal_img)
-    print(f"Entropy increase: {en_fused - en_thermal:.4f} bits")
     """
     try:
         # Görüntüyü bins'e böl

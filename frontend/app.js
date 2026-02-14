@@ -199,6 +199,11 @@ async function performSingleFusion(method) {
         
         if (data.success) {
             displayResults(data);
+            
+            // Automatically start streaming analysis if session_id is available
+            if (data.session_id) {
+                startStreamingAnalysis(data.session_id);
+            }
         } else {
             alert(`Hata: ${data.error}`);
         }
@@ -648,6 +653,191 @@ function drawComparisonChart(results) {
             }
         }
     });
+}
+
+/**
+ * Start streaming AI analysis
+ * @param {string} sessionId - Session ID from fusion response
+ */
+function startStreamingAnalysis(sessionId) {
+    console.log(`Starting streaming analysis for session: ${sessionId}`);
+    
+    // Show AI analysis section
+    const aiSection = document.getElementById('aiAnalysisSection');
+    aiSection.classList.remove('hidden');
+    
+    // Show loading status
+    document.getElementById('analysisStatus').style.display = 'flex';
+    document.getElementById('typingIndicator').style.display = 'inline-block';
+    
+    // Clear previous content
+    const contentDiv = document.getElementById('analysisContent');
+    contentDiv.innerHTML = '';
+    contentDiv.classList.add('streaming');
+    
+    // Create EventSource for SSE
+    const eventSource = new EventSource(`${API_URL}/stream-analysis/${sessionId}`);
+    
+    let fullText = '';
+    let isFirstChunk = true;
+    
+    eventSource.addEventListener('message', (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'start') {
+                console.log('Analysis streaming started');
+                
+            } else if (data.type === 'chunk') {
+                // Append text chunk
+                fullText += data.text;
+                
+                // Update display with streaming effect
+                renderStreamingText(fullText);
+                
+                // Hide status on first chunk
+                if (isFirstChunk) {
+                    document.getElementById('analysisStatus').style.display = 'none';
+                    isFirstChunk = false;
+                }
+                
+            } else if (data.type === 'done') {
+                console.log('Analysis streaming complete');
+                
+                // Final render with markdown formatting
+                renderFinalAnalysis(fullText);
+                
+                // Hide typing indicator
+                document.getElementById('typingIndicator').style.display = 'none';
+                
+                // Close connection
+                eventSource.close();
+                
+                // Scroll to analysis
+                aiSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+            } else if (data.type === 'error') {
+                console.error('Streaming error:', data.message);
+                displayAnalysisError(data.message);
+                eventSource.close();
+            }
+            
+        } catch (error) {
+            console.error('Error parsing SSE data:', error);
+        }
+    });
+    
+    eventSource.addEventListener('error', (error) => {
+        console.error('SSE connection error:', error);
+        displayAnalysisError('Connection failed. Please try again.');
+        eventSource.close();
+    });
+    
+    // Timeout after 60 seconds
+    setTimeout(() => {
+        if (eventSource.readyState !== EventSource.CLOSED) {
+            console.warn('Analysis timeout, closing connection');
+            eventSource.close();
+            if (fullText.length === 0) {
+                displayAnalysisError('Analysis timeout. Please try again.');
+            }
+        }
+    }, 60000);
+}
+
+/**
+ * Render text during streaming (plain text)
+ * @param {string} text - Current accumulated text
+ */
+function renderStreamingText(text) {
+    const container = document.getElementById('analysisContent');
+    container.textContent = text;
+    
+    // Auto-scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Render final analysis with markdown formatting
+ * @param {string} markdownText - Complete markdown text
+ */
+function renderFinalAnalysis(markdownText) {
+    const container = document.getElementById('analysisContent');
+    
+    // Remove streaming class
+    container.classList.remove('streaming');
+    
+    // Convert markdown to HTML
+    try {
+        const htmlContent = marked.parse(markdownText);
+        container.innerHTML = htmlContent;
+        
+        // Apply metric value highlighting
+        highlightMetricValues();
+        
+    } catch (error) {
+        console.error('Error parsing markdown:', error);
+        container.textContent = markdownText;
+    }
+}
+
+/**
+ * Highlight metric values in the analysis text
+ */
+function highlightMetricValues() {
+    const content = document.getElementById('analysisContent');
+    
+    // Find and highlight metric values
+    const metricPatterns = [
+        { regex: /PSNR:?\s*([\d.]+)\s*dB/gi, threshold: [20, 30, 40] },
+        { regex: /SSIM:?\s*([\d.]+)/gi, threshold: [0.8, 0.9, 0.95] },
+        { regex: /SF:?\s*([\d.]+)/gi, threshold: [10, 20, 30] },
+        { regex: /MI:?\s*([\d.]+)/gi, threshold: [1, 2, 3] },
+        { regex: /Entropy:?\s*([\d.]+)/gi, threshold: [5, 6, 7] },
+        { regex: /MSE:?\s*([\d.]+)/gi, threshold: [0.1, 0.01, 0.001], inverse: true }
+    ];
+    
+    let html = content.innerHTML;
+    
+    metricPatterns.forEach(pattern => {
+        html = html.replace(pattern.regex, (match, value) => {
+            const numValue = parseFloat(value);
+            let cssClass = 'metric-poor';
+            
+            if (pattern.inverse) {
+                // Lower is better (MSE)
+                if (numValue <= pattern.threshold[2]) cssClass = 'metric-good';
+                else if (numValue <= pattern.threshold[1]) cssClass = 'metric-medium';
+            } else {
+                // Higher is better
+                if (numValue >= pattern.threshold[2]) cssClass = 'metric-good';
+                else if (numValue >= pattern.threshold[1]) cssClass = 'metric-medium';
+            }
+            
+            return match.replace(value, `<span class="metric-value ${cssClass}">${value}</span>`);
+        });
+    });
+    
+    content.innerHTML = html;
+}
+
+/**
+ * Display error in analysis section
+ * @param {string} message - Error message
+ */
+function displayAnalysisError(message) {
+    const container = document.getElementById('analysisContent');
+    container.classList.remove('streaming');
+    container.innerHTML = `
+        <div class="analysis-error">
+            <h3>⚠️ Analysis Error</h3>
+            <p>${message}</p>
+            <p class="error-note">Note: Vision-LLM analysis requires GPU and may take time to load initially.</p>
+        </div>
+    `;
+    
+    document.getElementById('analysisStatus').style.display = 'none';
+    document.getElementById('typingIndicator').style.display = 'none';
 }
 
 console.log('DeepFusionColor App.js yüklendi');

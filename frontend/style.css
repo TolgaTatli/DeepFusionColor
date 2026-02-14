@@ -335,6 +335,173 @@ section h2 {
     margin: 5px 0;
 }
 
+/* AI Analysis Section - Streaming */
+.ai-analysis-section {
+    background: #f8f9fa;
+    border-radius: var(--border-radius);
+    padding: 30px;
+    margin-top: 30px;
+}
+
+.ai-analysis-section h2 {
+    color: #2c3e50;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.typing-indicator {
+    display: inline-block;
+    animation: blink 1s infinite;
+    color: #3498db;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.analysis-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #7f8c8d;
+    font-style: italic;
+    gap: 15px;
+}
+
+.spinner-small {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.analysis-panel {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    margin-top: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    line-height: 1.8;
+    scroll-behavior: smooth;
+}
+
+.analysis-panel.streaming {
+    /* While streaming, show as plain text with monospace font */
+    font-family: 'Courier New', monospace;
+    color: #333;
+    white-space: pre-wrap;
+    font-size: 14px;
+}
+
+/* Markdown formatting for final analysis */
+.analysis-panel h2 {
+    color: #2c3e50;
+    font-size: 1.5em;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+}
+
+.analysis-panel h3 {
+    color: #34495e;
+    font-size: 1.2em;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.analysis-panel p {
+    color: #444;
+    text-align: justify;
+    margin: 15px 0;
+    font-family: 'Georgia', serif;
+}
+
+.analysis-panel ul, .analysis-panel ol {
+    margin: 15px 0 15px 30px;
+    color: #444;
+}
+
+.analysis-panel li {
+    margin: 8px 0;
+}
+
+.analysis-panel code {
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: #e74c3c;
+}
+
+.analysis-panel strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Metric value highlighting in analysis */
+.metric-value {
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.metric-good {
+    background: #d4edda;
+    color: #155724;
+}
+
+.metric-medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.metric-poor {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Analysis error styling */
+.analysis-error {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.analysis-error h3 {
+    color: #856404;
+    margin-bottom: 10px;
+}
+
+.analysis-error p {
+    color: #856404;
+    margin: 10px 0;
+}
+
+.analysis-error .error-note {
+    font-size: 0.9em;
+    font-style: italic;
+    opacity: 0.8;
+    margin-top: 15px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header h1 {
@@ -350,5 +517,14 @@ section h2 {
     .fusion-btn {
         padding: 15px 30px;
         font-size: 1.1em;
+    }
+    
+    .analysis-panel {
+        padding: 20px;
+        font-size: 13px;
+    }
+    
+    .analysis-panel.streaming {
+        font-size: 12px;
     }
 }
