@@ -210,34 +210,7 @@ lambda_sparse=0.1      # Sparsity parametresi
 
 ---
 
-### 5. **VIF Fusion** (Geleneksel)
-**Açıklama**: Visual Information Fidelity - insan görsel sistemini modeller.
-
-**Nasıl Çalışır**:
-- Multi-scale pyramid representation oluşturur
-- Visual saliency (görsel belirginlik) hesaplar
-- Daha belirgin bölgeleri seçer
-
-**Avantajları**:
-- 👁️ İnsan görsel algısına yakın
-- 🎯 Saliency-based fusion
-- 🔍 Multi-scale analysis
-
-**Parametreler**:
-```python
-scales=4              # Piramit seviye sayısı
-sigma=1.5            # Gaussian blur sigma
-window_size=11       # Local variance pencere boyutu
-```
-
-**Parametre Etkileri**:
-- `scales` artırırsan → Daha detaylı ama yavaş
-- `sigma` büyütürsen → Daha yumuşak, az gürültü
-- `window_size` küçültürsen → Daha lokal, hassas
-
----
-
-### 6. **DenseFuse** (Deep Learning - EKSTRA YÖNTEM! 🌟)
+### 5. **DenseFuse** (Deep Learning - SOTA! 🌟)
 **Açıklama**: Dense block connections ile state-of-the-art fusion.
 
 **Nasıl Çalışır**:
@@ -311,7 +284,7 @@ SSIM(x,y) = [l(x,y)]^α * [c(x,y)]^β * [s(x,y)]^γ
 - 0.95+: Mükemmel
 
 **Artırmak için**:
-- Yapısal bilgiyi koruyan yöntemler kullan (CNN, VIF)
+- Yapısal bilgiyi koruyan yöntemler kullan (CNN, DenseFuse)
 - Contrast preserving fusion rules
 
 ---
@@ -516,7 +489,6 @@ DeepFusionColor/
 │   │   ├── dnn_fusion.py
 │   │   ├── cnn_fusion.py
 │   │   ├── latentlrr_fusion.py
-│   │   ├── vif_fusion.py
 │   │   └── densefuse_fusion.py  # SOTA method
 │   │
 │   ├── metrics/                 # Değerlendirme metrikleri
@@ -566,9 +538,6 @@ cnn_fusion(img1, img2, epochs=10, num_filters=[8, 16, 32])
 
 #### Yüksek Kalite Konfigürasyonu
 ```python
-# VIF - İyi kalite
-vif_fusion(img1, img2, scales=5, sigma=2.0)
-
 # LatLRR - Çok iyi
 latentlrr_fusion(img1, img2, rank_ratio=0.95, n_components=200)
 
@@ -617,13 +586,12 @@ img1, img2 = preprocess_for_fusion(img1, img2, target_size=(128, 128))
 | DNN         | 30.12     | 0.891 | 2.56  | 6.92    | 26.3  | 5.43     |
 | CNN         | 32.67     | 0.923 | 2.89  | 7.12    | 28.7  | 8.76     |
 | LatentLRR   | 31.89     | 0.912 | 2.78  | 7.05    | 27.4  | 12.34    |
-| VIF         | 33.21     | 0.934 | 3.02  | 7.23    | 29.8  | 3.45     |
 | **DenseFuse** | **35.78** | **0.956** | **3.34** | **7.45** | **32.1** | 15.67 |
 
 **Gözlemler**:
 - ⚡ En hızlı: Wavelet (0.12s)
 - 🏆 En iyi kalite: DenseFuse (tüm metriklerde)
-- ⚖️ En dengeli: VIF (iyi kalite + orta hız)
+- ⚠️ En dengeli: CNN (iyi kalite + makul hız)
 - 💡 Deep learning yöntemleri geleneksel yöntemlerden %10-15 daha iyi
 
 ### Görsel Sonuçlar
@@ -696,8 +664,7 @@ results/
 1. **DenseFuse**: Li, H., & Wu, X. J. (2018). DenseFuse: A Fusion Approach to Infrared and Visible Images. IEEE TIP.
 2. **CNN Fusion**: Liu, Y., et al. (2017). Multi-focus image fusion with a deep convolutional neural network. Information Fusion.
 3. **LatLRR**: Li, H., et al. (2013). Multi-focus image fusion using dictionary learning and low-rank representation. ICIP.
-4. **VIF**: Han, Y., et al. (2013). A new image fusion performance metric based on visual information fidelity. Information Fusion.
-5. **Wavelet**: Pajares, G., & De La Cruz, J. M. (2004). A wavelet-based image fusion tutorial. Pattern recognition.
+4. **Wavelet**: Pajares, G., & De La Cruz, J. M. (2004). A wavelet-based image fusion tutorial. Pattern recognition.
 
 ### Dataset
 - **TNO Image Fusion Dataset**: Alexander Toet. (2014). TNO Image Fusion Dataset.

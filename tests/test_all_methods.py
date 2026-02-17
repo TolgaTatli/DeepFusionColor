@@ -25,7 +25,6 @@ from models.wavelet_fusion import wavelet_fusion
 from models.dnn_fusion import dnn_fusion
 from models.cnn_fusion import cnn_fusion
 from models.latentlrr_fusion import latentlrr_fusion
-from models.vif_fusion import vif_fusion
 from models.densefuse_fusion import densefuse_fusion
 from metrics.evaluation_metrics import calculate_all_metrics
 from utils.image_utils import load_image, save_image, preprocess_for_fusion
@@ -205,7 +204,6 @@ def test_all_methods():
         ('DNN', lambda img1, img2: dnn_fusion(img1, img2, epochs=10, batch_size=1024)),
         ('CNN', lambda img1, img2: cnn_fusion(img1, img2, epochs=15, batch_size=16)),
         ('LatentLRR', lambda img1, img2: latentlrr_fusion(img1, img2, rank_ratio=0.9)),
-        ('VIF', lambda img1, img2: vif_fusion(img1, img2, scales=4)),
         ('DenseFuse', lambda img1, img2: densefuse_fusion(img1, img2, epochs=20, batch_size=16))
     ]
     

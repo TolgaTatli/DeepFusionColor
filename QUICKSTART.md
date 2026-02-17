@@ -87,7 +87,7 @@ pip install -r backend/requirements.txt
 
 ## 💡 Pro İpuçları
 
-1. **Hızlı test için**: Wavelet veya VIF kullan
+1. **Hızlı test için**: Wavelet kullan
 2. **En iyi sonuç için**: DenseFuse kullan (ama yavaş)
 3. **Batch test**: `python tests/test_all_methods.py` çalıştır
 4. **GPU varsa**: PyTorch otomatik kullanır, endişelenme!

@@ -25,7 +25,6 @@ from models.wavelet_fusion import wavelet_fusion
 from models.dnn_fusion import dnn_fusion, DNNFusionTrainer
 from models.cnn_fusion import cnn_fusion, CNNFusionTrainer
 from models.latentlrr_fusion import latentlrr_fusion
-from models.vif_fusion import vif_fusion
 from models.densefuse_fusion import densefuse_fusion, DenseFuseTrainer
 from metrics.evaluation_metrics import calculate_all_metrics
 from utils.image_utils import load_image, save_image, preprocess_for_fusion, convert_to_uint8
@@ -225,14 +224,6 @@ def get_methods():
             'quality': 'Very Good'
         },
         {
-            'id': 'vif',
-            'name': 'Visual Information Fidelity',
-            'type': 'Traditional',
-            'description': 'Multi-scale visual saliency tabanlı',
-            'speed': 'Medium',
-            'quality': 'Very Good'
-        },
-        {
             'id': 'densefuse',
             'name': 'DenseFuse',
             'type': 'Deep Learning',
@@ -254,7 +245,7 @@ def perform_fusion():
     {
         'image1': 'base64_encoded_image',
         'image2': 'base64_encoded_image',
-        'method': 'wavelet|dnn|cnn|latentlrr|vif|densefuse',
+        'method': 'wavelet|dnn|cnn|latentlrr|densefuse',
         'params': {...}  # Method-specific parameters (optional)
     }
     """
@@ -293,8 +284,6 @@ def perform_fusion():
                 fused = cnn_fusion(img1, img2, **params)
         elif method == 'latentlrr':
             fused = latentlrr_fusion(img1, img2, **params)
-        elif method == 'vif':
-            fused = vif_fusion(img1, img2, **params)
         elif method == 'densefuse':
             # Pre-trained model varsa kullan, yoksa on-the-fly training
             if PRETRAINED_MODELS['densefuse']:
