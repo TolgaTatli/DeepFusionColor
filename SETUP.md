@@ -157,14 +157,18 @@ CPU kullanıyorsa PyTorch CUDA kurulumunu tekrar yapın.
 
 ## 🎓 Dataset
 
-TNO Image Fusion Dataset zaten proje klasöründe:
+LLVIP (Long-wave infrared and visible image fusion) Dataset proje klasöründe:
 ```
-TNO_Image_Fusion_Dataset/
+LLVIP/
+  ├── infrared/
+  │   ├── train/
+  │   └── test/
+  └── visible/
+      ├── train/
+      └── test/
 ```
 
-Test için örnek görüntüler:
-- Thermal: `TNO_Image_Fusion_Dataset/TNO_Image_Fusion_Dataset/Athena_images/bunker/IR.bmp`
-- Visible: `TNO_Image_Fusion_Dataset/TNO_Image_Fusion_Dataset/Athena_images/bunker/VIS.bmp`
+Test için örnek görüntüleri test klasörlerinde bularsın.
 
 ---
 
@@ -210,3 +214,7 @@ Sorun yaşıyorsanız:
 3. Backend başlatırken konsolu kontrol edin (GPU aktif mi?)
 
 Başarılar! 🚀
+
+
+
+torch-2.1.0+cu118

@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
 
 class DNNFusionNet(nn.Module):
@@ -272,7 +273,7 @@ class DNNFusionTrainer:
         
         # Dataset oluştur
         dataset = ImagePairDataset(all_ir.reshape(-1), all_vis.reshape(-1))
-        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=0, pin_memory=True)
         
         # Loss ve optimizer
         criterion = nn.MSELoss()
@@ -280,9 +281,12 @@ class DNNFusionTrainer:
         
         # Training loop
         self.model.train()
-        for epoch in range(self.epochs):
+        pbar_epochs = tqdm(range(self.epochs), desc="[DNN] Training", unit="epoch")
+        for epoch in pbar_epochs:
             total_loss = 0
-            for batch_x, batch_y in dataloader:
+            batch_count = 0
+            pbar_batches = tqdm(dataloader, desc=f"  Epoch {epoch+1}/{self.epochs}", leave=False, unit="batch")
+            for batch_x, batch_y in pbar_batches:
                 batch_x = batch_x.to(self.device)
                 batch_y = batch_y.to(self.device)
                 
@@ -294,10 +298,11 @@ class DNNFusionTrainer:
                 optimizer.step()
                 
                 total_loss += loss.item()
+                batch_count += 1
+                pbar_batches.set_postfix({'loss': f'{loss.item():.6f}'})
             
-            avg_loss = total_loss / len(dataloader)
-            if (epoch + 1) % 3 == 0 or epoch == 0:
-                print(f"  Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+            avg_loss = total_loss / batch_count if batch_count > 0 else 0
+            pbar_epochs.set_postfix({'avg_loss': f'{avg_loss:.6f}'})
         
         print("[DNN Fusion] Training complete!")
     

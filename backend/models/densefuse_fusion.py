@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
 
 class ImagePatchDataset(Dataset):
@@ -360,7 +361,7 @@ class DenseFusion:
         dataset = ImagePairDatasetDense(img1, img2, 
                                        patch_size=self.patch_size, 
                                        stride=self.patch_size//2)
-        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=0, pin_memory=True)
         
         print(f"[DenseFuse] Training on {len(dataset)} patches...")
         
@@ -567,7 +568,7 @@ class DenseFuseTrainer:
         
         # DataLoader oluştur
         dataset = torch.utils.data.TensorDataset(all_patches_ir, all_patches_vis, all_targets)
-        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=0, pin_memory=True)
         
         # Loss ve optimizer
         criterion = nn.MSELoss()
@@ -575,9 +576,12 @@ class DenseFuseTrainer:
         
         # Training
         self.model.train()
-        for epoch in range(self.epochs):
+        pbar_epochs = tqdm(range(self.epochs), desc="[DenseFuse] Training", unit="epoch")
+        for epoch in pbar_epochs:
             total_loss = 0
-            for patch1, patch2, target in dataloader:
+            batch_count = 0
+            pbar_batches = tqdm(dataloader, desc=f"  Epoch {epoch+1}/{self.epochs}", leave=False, unit="batch")
+            for patch1, patch2, target in pbar_batches:
                 patch1 = patch1.to(self.device)
                 patch2 = patch2.to(self.device)
                 target = target.to(self.device)
@@ -590,10 +594,11 @@ class DenseFuseTrainer:
                 optimizer.step()
                 
                 total_loss += loss.item()
+                batch_count += 1
+                pbar_batches.set_postfix({'loss': f'{loss.item():.6f}'})
             
-            avg_loss = total_loss / len(dataloader)
-            if (epoch + 1) % 5 == 0 or epoch == 0:
-                print(f"  Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+            avg_loss = total_loss / batch_count if batch_count > 0 else 0
+            pbar_epochs.set_postfix({'avg_loss': f'{avg_loss:.6f}'})
         
         print("[DenseFuse] Training complete!")
     

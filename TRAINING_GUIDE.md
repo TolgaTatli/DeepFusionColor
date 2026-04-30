@@ -5,20 +5,20 @@
 Önceki sistemde CNN ve DenseFuse modelleri **her füzyon isteğinde yeniden eğitiliyordu**:
 - ❌ Tek görüntü çifti ile eğitim (overfitting garantisi!)
 - ❌ Her seferinde yeniden eğitim (çok yavaş)
-- ❌ TNO dataset kullanılmıyordu
+- ❌ Dataset kullanılmadı
 - ❌ Bilimsel olarak tamamen yanlış
 
 ## ✅ Yeni Sistem
 
 Artık **düzgün bir ML pipeline** var:
 
-1. **Training**: TNO dataset ile bir kere eğit (70-30 split)
+1. **Training**: LLVIP dataset ile üretim eğitim (70-30 split)
 2. **Save**: Modelleri `.pth` dosyası olarak kaydet
 3. **Inference**: Frontend'den gelen görüntüleri pre-trained model ile füze et
 
-## 📊 TNO Dataset
+## 📊 LLVIP Dataset
 
-TNO Image Fusion Dataset içeriyor:
+LLVIP (Long-wave infrared and visible image fusion) Dataset içeriyor:
 - Thermal (IR) ve Visual görüntü çiftleri
 - Farklı senaryolar (askeri, kentsel, doğa)
 - ~100+ görüntü çifti
@@ -118,7 +118,7 @@ Frontend'den füzyon isteği geldiğinde:
 
 **Pre-trained model varsa:**
 - ⚡ Hızlı inference (saniyeler)
-- ✅ TNO dataset ile eğitilmiş model
+- ✅ LLVIP dataset ile eğitilmiş model
 - ✅ Generalization (yeni görüntülerde de iyi çalışır)
 
 **Pre-trained model yoksa:**
@@ -161,8 +161,8 @@ Testing on 10 image pairs...
 
 ## 🐛 Troubleshooting
 
-**Hata: "TNO dataset not found"**
-- TNO dataset'in `TNO_Image_Fusion_Dataset/TNO_Image_Fusion_Dataset/` altında olduğundan emin ol
+**Hata: "LLVIP dataset not found"**
+- LLVIP dataset'in `LLVIP/infrared/` ve `LLVIP/visible/` altında olduğundan emin ol
 
 **Hata: "CUDA out of memory"**
 - `--batch-size 8` ile batch size'ı küçült
@@ -184,7 +184,7 @@ Testing on 10 image pairs...
 Dataset loader'ı test et:
 ```bash
 cd backend/utils
-python tno_dataset_loader.py
+python backend\utils\llvip_dataset_loader.py
 ```
 
 ### Manuel Model Yükleme
@@ -208,4 +208,4 @@ Artık sistem profesyonel bir ML pipeline'ına sahip:
 - ✅ No overfitting
 - ✅ Gerçek dünya senaryolarında çalışır
 
-Senin benzetmenle: Artık model sadece seninle değil, tüm TNO dataset ile train ediliyor! 🎓
+Senin benzetmenle: Artık model sadece seninle değil, tüm LLVIP dataset ile train ediliyor! 🎓

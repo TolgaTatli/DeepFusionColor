@@ -1,11 +1,12 @@
 """
 Model Training Script
 =====================
-TNO dataset ile CNN ve DenseFuse modellerini eğitir.
-70-30 train-test split kullanır.
+LLVIP dataset ile DNN, CNN ve DenseFuse modellerini eğitir.
+Train-Test split kullanır.
 Eğitilmiş modelleri trained_models/ klasörüne kaydeder.
 
 Kullanım:
+    python train_models.py --model dnn
     python train_models.py --model cnn
     python train_models.py --model densefuse
     python train_models.py --model all
@@ -19,7 +20,7 @@ import torch
 
 # Backend modüllerini import et
 sys.path.append(os.path.dirname(__file__))
-from utils.tno_dataset_loader import TNODatasetLoader
+from utils.llvip_dataset_loader import LLVIPDatasetLoader
 from models.dnn_fusion import DNNFusionTrainer
 from models.cnn_fusion import CNNFusionTrainer
 from models.densefuse_fusion import DenseFuseTrainer
@@ -28,7 +29,7 @@ from models.densefuse_fusion import DenseFuseTrainer
 # Dizinleri ayarla
 BACKEND_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.dirname(BACKEND_DIR)
-DATASET_DIR = os.path.join(PROJECT_DIR, 'TNO_Image_Fusion_Dataset', 'TNO_Image_Fusion_Dataset')
+DATASET_DIR = os.path.join(PROJECT_DIR, 'LLVIP')
 MODELS_DIR = os.path.join(BACKEND_DIR, 'trained_models')
 
 # Models dizinini oluştur
@@ -41,7 +42,7 @@ def train_dnn(dataset_loader, config):
     
     Parametreler:
     ------------
-    dataset_loader : TNODatasetLoader
+    dataset_loader : LLVIPDatasetLoader
         Dataset loader
         
     config : dict
@@ -63,8 +64,8 @@ def train_dnn(dataset_loader, config):
     print("\n[2/4] Creating DNN trainer...")
     trainer = DNNFusionTrainer(
         hidden_sizes=config.get('hidden_sizes', [256, 128, 64]),
-        epochs=config.get('epochs', 15),
-        batch_size=config.get('batch_size', 1024),
+        epochs=config.get('epochs', 5),
+        batch_size=config.get('batch_size', 256),
         lr=config.get('lr', 0.001)
     )
     
@@ -80,7 +81,7 @@ def train_dnn(dataset_loader, config):
         'hidden_sizes': config.get('hidden_sizes', [256, 128, 64]),
         'config': config,
         'train_samples': len(train_ir),
-        'dataset_split': f"{int((1-dataset_loader.test_size)*100)}-{int(dataset_loader.test_size*100)}"
+        'dataset': 'LLVIP'
     }, model_path)
     
     print(f"\n✅ DNN model saved to: {model_path}")
@@ -95,7 +96,7 @@ def train_cnn(dataset_loader, config):
     
     Parametreler:
     ------------
-    dataset_loader : TNODatasetLoader
+    dataset_loader : LLVIPDatasetLoader
         Dataset loader
         
     config : dict
@@ -118,8 +119,8 @@ def train_cnn(dataset_loader, config):
     trainer = CNNFusionTrainer(
         num_filters=config.get('num_filters', [16, 32, 64]),
         kernel_size=config.get('kernel_size', 3),
-        epochs=config.get('epochs', 30),
-        batch_size=config.get('batch_size', 16),
+        epochs=config.get('epochs', 8),
+        batch_size=config.get('batch_size', 64),
         lr=config.get('lr', 0.001),
         patch_size=config.get('patch_size', 64)
     )
@@ -137,7 +138,7 @@ def train_cnn(dataset_loader, config):
         'kernel_size': config.get('kernel_size', 3),
         'config': config,
         'train_samples': len(train_ir),
-        'dataset_split': f"{int((1-dataset_loader.test_size)*100)}-{int(dataset_loader.test_size*100)}"
+        'dataset': 'LLVIP'
     }, model_path)
     
     print(f"\n✅ CNN model saved to: {model_path}")
@@ -152,7 +153,7 @@ def train_densefuse(dataset_loader, config):
     
     Parametreler:
     ------------
-    dataset_loader : TNODatasetLoader
+    dataset_loader : LLVIPDatasetLoader
         Dataset loader
         
     config : dict
@@ -176,9 +177,9 @@ def train_densefuse(dataset_loader, config):
         growth_rate=config.get('growth_rate', 16),
         num_blocks=config.get('num_blocks', 3),
         num_layers_per_block=config.get('num_layers_per_block', 4),
-        epochs=config.get('epochs', 25),
-        batch_size=config.get('batch_size', 16),
-        lr=config.get('lr', 0.0001),
+        epochs=config.get('epochs', 6),
+        batch_size=config.get('batch_size', 64),
+        lr=config.get('lr', 0.001),
         patch_size=config.get('patch_size', 64)
     )
     
@@ -196,7 +197,7 @@ def train_densefuse(dataset_loader, config):
         'num_layers_per_block': config.get('num_layers_per_block', 4),
         'config': config,
         'train_samples': len(train_ir),
-        'dataset_split': f"{int((1-dataset_loader.test_size)*100)}-{int(dataset_loader.test_size*100)}"
+        'dataset': 'LLVIP'
     }, model_path)
     
     print(f"\n✅ DenseFuse model saved to: {model_path}")
@@ -214,7 +215,7 @@ def evaluate_model(trainer, dataset_loader, model_name):
     trainer : Trainer object
         Eğitilmiş trainer
         
-    dataset_loader : TNODatasetLoader
+    dataset_loader : LLVIPDatasetLoader
         Dataset loader
         
     model_name : str
@@ -242,7 +243,7 @@ def evaluate_model(trainer, dataset_loader, model_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train image fusion models on TNO dataset')
+    parser = argparse.ArgumentParser(description='Train image fusion models on LLVIP dataset')
     parser.add_argument('--model', type=str, default='all', 
                        choices=['dnn', 'cnn', 'densefuse', 'all'],
                        help='Model to train (dnn/cnn/densefuse/all)')
@@ -254,8 +255,6 @@ def main():
                        help='Number of epochs for DenseFuse')
     parser.add_argument('--batch-size', type=int, default=16,
                        help='Batch size')
-    parser.add_argument('--test-size', type=float, default=0.3,
-                       help='Test set ratio (0.3 = 30%%)')
     parser.add_argument('--max-samples', type=int, default=None,
                        help='Max training samples (for quick testing)')
     parser.add_argument('--no-eval', action='store_true',
@@ -264,17 +263,16 @@ def main():
     args = parser.parse_args()
     
     print("\n" + "="*60)
-    print("TNO DATASET - MODEL TRAINING")
+    print("LLVIP DATASET - MODEL TRAINING")
     print("="*60)
     print(f"Dataset: {DATASET_DIR}")
     print(f"Models will be saved to: {MODELS_DIR}")
-    print(f"Train-Test Split: {int((1-args.test_size)*100)}-{int(args.test_size*100)}")
     
     # Dataset yükle
-    print("\n[SETUP] Loading TNO dataset...")
-    dataset_loader = TNODatasetLoader(
+    print("\n[SETUP] Loading LLVIP dataset...")
+    dataset_loader = LLVIPDatasetLoader(
         DATASET_DIR, 
-        test_size=args.test_size,
+        train_size=0.7,
         random_state=42
     )
     

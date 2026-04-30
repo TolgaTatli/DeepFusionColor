@@ -1,10 +1,10 @@
 """
 DeepFusionColor - Kapsamlı Test Script'i
 =========================================
-TNO dataset ile tüm füzyon yöntemlerini test eder.
+LLVIP dataset ile tüm füzyön yöntemlerini test eder.
 
 Bu script:
-1. TNO dataset'inden görüntüleri yükler
+1. LLVIP dataset'inden görüntüleri yükler
 2. Tüm füzyon yöntemlerini uygular
 3. Metrikleri hesaplar
 4. Sonuçları kaydeder ve karşılaştırır
@@ -31,73 +31,54 @@ from utils.image_utils import load_image, save_image, preprocess_for_fusion
 
 
 # Dataset ve sonuç dizinleri
-DATASET_ROOT = Path(__file__).parent.parent / 'TNO_Image_Fusion_Dataset' / 'TNO_Image_Fusion_Dataset'
+DATASET_ROOT = Path(__file__).parent.parent / 'LLVIP'
 RESULTS_DIR = Path(__file__).parent.parent / 'results'
 RESULTS_DIR.mkdir(exist_ok=True)
 
 
 def find_image_pairs(dataset_root):
     """
-    Dataset'ten görüntü çiftlerini bulur
+    LLVIP Dataset'ten görüntü çiftlerini bulur
     
-    TNO dataset'inde thermal ve visual görüntü çiftleri vardır.
-    Bu fonksiyon otomatik olarak eşleşen çiftleri bulur.
+    LLVIP dataset yapısı:
+    - infrared/train/, infrared/test/
+    - visible/train/, visible/test/
+    
+    Bu fonksiyon test klasörlerinden çiftleri bulur.
     
     Returns:
     -------
-    list : [(thermal_path, visible_path, name), ...]
+    list : [(infrared_path, visible_path, name), ...]
     """
     pairs = []
     
-    # Athena images - en yaygın kullanılan set
-    athena_dir = dataset_root / 'Athena_images'
-    if athena_dir.exists():
-        # Örnek klasörler
-        test_folders = [
-            '2_men_in_front_of_house',
-            'soldier_behind_smoke_1',
-            'soldier_in_trench_1',
-            'bunker',
-            'helicopter'
-        ]
-        
-        for folder in test_folders:
-            folder_path = athena_dir / folder
-            if not folder_path.exists():
-                continue
-            
-            # Thermal ve visible görüntüleri bul
-            thermal_files = list(folder_path.glob('*thermal*.bmp')) + \
-                          list(folder_path.glob('*IR*.bmp'))
-            visible_files = list(folder_path.glob('*visual*.bmp')) + \
-                          list(folder_path.glob('*VIS*.bmp'))
-            
-            if thermal_files and visible_files:
-                pairs.append((
-                    str(thermal_files[0]),
-                    str(visible_files[0]),
-                    folder
-                ))
+    # Test klasörlerinden görüntüleri bul
+    ir_test_dir = dataset_root / 'infrared' / 'test'
+    vis_test_dir = dataset_root / 'visible' / 'test'
     
-    # DHV images
-    dhv_dir = dataset_root / 'DHV_images'
-    if dhv_dir.exists():
-        test_folders = ['bench', 'sandpath', 'wall']
+    if not ir_test_dir.exists() or not vis_test_dir.exists():
+        print(f"❌ LLVIP dataset klasörleri bulunamadı!")
+        print(f"   Infrared: {ir_test_dir}")
+        print(f"   Visible: {vis_test_dir}")
+        return pairs
+    
+    # IR görüntüleri listele
+    ir_files = sorted(os.listdir(ir_test_dir))
+    
+    for ir_file in ir_files:
+        # Desteklenen formatlara bak
+        if not ir_file.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.tif')):
+            continue
         
-        for folder in test_folders:
-            folder_path = dhv_dir / folder
-            if not folder_path.exists():
-                continue
-            
-            thermal_files = list(folder_path.glob('*thermal*.bmp'))
-            visible_files = list(folder_path.glob('*visual*.bmp'))
-            
-            if thermal_files and visible_files:
-                pairs.append((
-                    str(thermal_files[0]),
-                    str(visible_files[0]),
-                    f'DHV_{folder}'
-                ))
+        # VIS görüntüsü aynı isimde olmalıdır
+        vis_file = ir_file
+        vis_path = vis_test_dir / vis_file
+        ir_path = ir_test_dir / ir_file
+        
+        if vis_path.exists():
+            # Scene adı dosya adından çıkarılır
+            scene_name = ir_file.split('.')[0]
+            pairs.append((str(ir_path), str(vis_path), scene_name))
     
     print(f"Toplam {len(pairs)} görüntü çifti bulundu")
     return pairs

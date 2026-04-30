@@ -1,4 +1,4 @@
-# Trained Models Directory
+ç# Trained Models Directory
 
 This directory contains pre-trained models for deep learning fusion methods.
 
@@ -15,7 +15,7 @@ To train models on TNO dataset (70-30 split):
 ```bash
 cd backend
 python train_models.py --model all
-```
+```cd
 
 ### Training Options
 
