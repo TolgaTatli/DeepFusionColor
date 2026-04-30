@@ -135,20 +135,6 @@ def image_entropy(image, bins=256):
 
 def spatial_frequency(image):
     """
-    SF - Spatial Frequency (Uzaysal Frekans)
-    
-    Görüntünün keskinliğini ve detay seviyesini ölçer.
-    Yüksek SF = keskin kenarlar, bol detay
-    
-    Formül: SF = sqrt(RF^2 + CF^2)
-    - RF: Row Frequency
-    - CF: Column Frequency
-    
-    Parametreler:
-    ------------
-    image : numpy.ndarray
-        Görüntü
-        
     Returns:
     -------
     float : SF değeri
@@ -156,16 +142,6 @@ def spatial_frequency(image):
             10+ = orta
             20+ = iyi
             30+ = çok keskin
-            
-    Etki: Füzyonun keskinliği artırıp artırmadığını gösterir
-          Blur/smooth görüntülerde düşük olur
-          
-    Örnek:
-    ------
-    sf_fused = spatial_frequency(fused_img)
-    sf_thermal = spatial_frequency(thermal_img)
-    sf_visible = spatial_frequency(visible_img)
-    print(f"SF improvement: {sf_fused - max(sf_thermal, sf_visible):.2f}")
     """
     try:
         # [0,1] aralığındaysa [0,255]'e çevir (SF için gerekli)
