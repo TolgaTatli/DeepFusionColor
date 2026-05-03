@@ -305,7 +305,8 @@ def perform_fusion():
 )
 
         print("\n================ AI ANALYSIS ================\n")
-        print(ai_result)
+        print(f"AI Result Type: {type(ai_result)}")
+        print(f"AI Result: {ai_result}")
         print("\n=============================================\n")
 
         # Sonucu base64'e çevir
@@ -318,7 +319,7 @@ def perform_fusion():
             'fused_image': fused_base64,
             'metrics': metrics_json,
             'method': method,
-            'ai_analysis': ai_result
+            'analysis': ai_result
         })
         
     except Exception as e:

@@ -196,6 +196,10 @@ async function performSingleFusion(method) {
         });
         
         const data = await response.json();
+        console.log('[DEBUG] Backend response:', data);
+        console.log('[DEBUG] Response keys:', Object.keys(data));
+        console.log('[DEBUG] AI Analysis field:', data.analysis);
+        console.log('[DEBUG] Full response JSON:', JSON.stringify(data, null, 2));
         
         if (data.success) {
             displayResults(data);
@@ -255,6 +259,7 @@ async function performBatchFusion() {
  * Füzyon sonuçlarını görüntüler
  */
 function displayResults(data) {
+    console.log('[DEBUG] displayResults çalıştı');
     // Sonuç bölümünü göster
     document.getElementById('resultsSection').classList.remove('hidden');
     
@@ -268,8 +273,122 @@ function displayResults(data) {
     // Chart çiz
     drawMetricsChart(data.metrics);
     
+    // AI Analizi göster
+    const aiText = data.analysis || data.ai_analysis || data.aiResult || data.ai_result;
+    console.log('[DEBUG] AI text değeri:', aiText);
+    console.log('[DEBUG] AI text tipi:', typeof aiText);
+    if (aiText) {
+        console.log('[DEBUG] displayAIAnalysis çağrılıyor');
+        displayAIAnalysis(aiText);
+    } else {
+        console.log('[DEBUG] AI analizi boş, fallback mesaj gösteriliyor');
+        displayAIAnalysis('Yapay zeka analizi henüz alınamadı.');
+    }
+    
     // Scroll to results
     document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * AI Analizi gösterir
+ */
+function displayAIAnalysis(analysis) {
+    console.log('[DEBUG] displayAIAnalysis başladı, analysis:', analysis);
+    const aiAnalysisDiv = document.getElementById('aiAnalysis');
+    
+    if (!aiAnalysisDiv) {
+        console.error('[ERROR] aiAnalysis element bulunamadı!');
+        return;
+    }
+    console.log('[DEBUG] aiAnalysisDiv bulundu');
+    
+    let cardsHtml = '';
+    
+    if (typeof analysis === 'string') {
+        console.log('[DEBUG] Analysis string tipi');
+        const parsed = tryParseJson(analysis);
+        if (parsed) {
+            console.log('[DEBUG] JSON parse edildi');
+            cardsHtml = formatAnalysisObject(parsed);
+        } else {
+            console.log('[DEBUG] JSON parse başarısız, gerçek string gösteriliyor');
+            cardsHtml = `<div class="ai-card"><p>${escapeHtml(analysis).replace(/\n/g, '<br>')}</p></div>`;
+        }
+    } else if (typeof analysis === 'object') {
+        console.log('[DEBUG] Analysis object tipi');
+        cardsHtml = formatAnalysisObject(analysis);
+    } else {
+        console.log('[DEBUG] Analysis bilinmeyen tipi:', typeof analysis);
+        cardsHtml = `<div class="ai-card"><p>AI analizi uygun formatta değil.</p></div>`;
+    }
+    
+    console.log('[DEBUG] cardsHtml:', cardsHtml);
+    aiAnalysisDiv.innerHTML = `
+        <div class="analysis-grid">
+            ${cardsHtml}
+        </div>
+    `;
+    
+    console.log('[DEBUG] AI analizi gösterildi, DOM güncellendi');
+}
+
+/**
+ * Nesne tipindeki AI analiz sonuçlarını biçimlendirir
+ */
+function formatAnalysisObject(analysisObject) {
+    if (!analysisObject || typeof analysisObject !== 'object') {
+        return '<div class="ai-card"><p>AI analizi uygun formatta değil.</p></div>';
+    }
+
+    if (Array.isArray(analysisObject)) {
+        return analysisObject
+            .map(item => `<div class="ai-card"><p>${escapeHtml(String(item))}</p></div>`)
+            .join('');
+    }
+
+    return Object.entries(analysisObject)
+        .map(([key, value]) => {
+            const displayValue = typeof value === 'object'
+                ? escapeHtml(JSON.stringify(value, null, 2)).replace(/\n/g, '<br>')
+                : escapeHtml(String(value)).replace(/\n/g, '<br>');
+            return `
+                <div class="ai-card">
+                    <strong>${escapeHtml(capitalizeKey(key))}</strong>
+                    <p>${displayValue}</p>
+                </div>
+            `;
+        })
+        .join('');
+}
+
+/**
+ * AI analizi JSON stringini denemeye çalışır
+ */
+function tryParseJson(value) {
+    try {
+        return JSON.parse(value);
+    } catch (err) {
+        return null;
+    }
+}
+
+/**
+ * Metinleri güvenli hale getirir
+ */
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
+ * JSON anahtarını başlık haline getirir
+ */
+function capitalizeKey(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /**

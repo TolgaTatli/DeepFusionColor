@@ -50,10 +50,14 @@ def analyze_fusion_metrics(metrics: dict):
         )
 
         data = response.json()
+        print(f"[MISTRAL] API Response status: {response.status_code}")
+        print(f"[MISTRAL] Response data: {data}")
 
         content = data["choices"][0]["message"]["content"]
+        print(f"[MISTRAL] Content extracted: {content}")
 
         parsed = json.loads(content)
+        print(f"[MISTRAL] JSON parsed: {parsed}")
 
         return {
             "success": True,
@@ -61,7 +65,9 @@ def analyze_fusion_metrics(metrics: dict):
         }
 
     except Exception as e:
-
+        print(f"[MISTRAL ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": False,
             "error": str(e)
