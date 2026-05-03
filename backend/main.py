@@ -28,6 +28,8 @@ from models.latentlrr_fusion import latentlrr_fusion
 from models.densefuse_fusion import densefuse_fusion, DenseFuseTrainer
 from metrics.evaluation_metrics import calculate_all_metrics
 from utils.image_utils import load_image, save_image, preprocess_for_fusion, convert_to_uint8
+# mistral analiz servisi
+from analysis.fusion_analysis import generate_ai_analysis
 
 
 # Flask app oluştur
@@ -274,23 +276,49 @@ def perform_fusion():
         
         # Metrikleri hesapla
         metrics = calculate_all_metrics(img1, fused, img2, verbose=True)
-        
-        # Metrikleri JSON serializable hale getir (numpy types -> Python types)
+
+        # Metrikleri JSON serializable hale getir
         metrics_json = {
             key: float(value) if isinstance(value, (np.floating, np.integer)) else value
             for key, value in metrics.items()
         }
-        
+        #test 
+        print(metrics_json.keys())
+
+        # ================================
+        # AI ANALYSIS
+        # ================================
+        ai_result = generate_ai_analysis(
+            method=method,
+
+            psnr=metrics_json.get("psnr_avg", 0),
+
+            ssim=metrics_json.get("ssim_avg", 0),
+
+            mse=metrics_json.get("mse_avg", 0),
+
+            mi=metrics_json.get("mi_avg", 0),
+
+            en=metrics_json.get("entropy", 0),
+
+            sf=metrics_json.get("sf", 0)
+)
+
+        print("\n================ AI ANALYSIS ================\n")
+        print(ai_result)
+        print("\n=============================================\n")
+
         # Sonucu base64'e çevir
         fused_base64 = image_to_base64(fused)
-        
+
         print(f"[API] Fusion completed successfully!")
-        
+
         return jsonify({
             'success': True,
             'fused_image': fused_base64,
             'metrics': metrics_json,
-            'method': method
+            'method': method,
+            'ai_analysis': ai_result
         })
         
     except Exception as e:

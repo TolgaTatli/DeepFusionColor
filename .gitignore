@@ -61,10 +61,14 @@ results/*.txt
 *.log
 
 # Dataset (çok büyük, git'e eklenmez)
-TNO_Image_Fusion_Dataset/
+LLVIP/
 dataset/
 data/
 
 # Temporary files
 *.tmp
 temp/
+
+
+#env file
+backend/.env
