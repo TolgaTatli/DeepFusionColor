@@ -64,6 +64,14 @@ def analyze_fusion_metrics(metrics: dict):
                 content = content[4:]
             content = content.strip()
 
+        # Markdown code block markers'ı kaldır
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+
         parsed = json.loads(content)
         print(f"[MISTRAL] JSON parsed: {parsed}")
 

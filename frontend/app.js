@@ -1,46 +1,46 @@
 /**
  * DeepFusionColor Frontend JavaScript
  * ====================================
- * Backend API ile iletişim kurar ve arayüz kontrolünü sağlar
+ * Communicates with Backend API and provides UI control
  */
 
-// API URL (backend server adresi)
+// API URL (backend server address)
 const API_URL = 'http://localhost:5000';
 
-// Global değişkenler
-let selectedMethod = 'wavelet';  // Varsayılan yöntem
+// Global variables
+let selectedMethod = 'wavelet';  // Default method
 let image1Data = null;
 let image2Data = null;
 let availableMethods = [];
 let metricsChart = null;
 
 /**
- * Sayfa yüklendiğinde çalışır
+ * Runs when page loads
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DeepFusionColor Frontend başlatıldı');
+    console.log('DeepFusionColor Frontend started');
     
-    // Event listener'ları ekle
+    // Add event listeners
     setupEventListeners();
     
-    // Yöntemleri yükle
+    // Load methods
     loadMethods();
 });
 
 /**
- * Event listener'ları ayarlar
+ * Setup event listeners
  */
 function setupEventListeners() {
-    // Görüntü upload
+    // Image upload
     document.getElementById('image1Input').addEventListener('change', (e) => handleImageUpload(e, 'image1'));
     document.getElementById('image2Input').addEventListener('change', (e) => handleImageUpload(e, 'image2'));
     
-    // Füzyon butonu
+    // Fusion button
     document.getElementById('fusionBtn').addEventListener('click', performFusion);
 }
 
 /**
- * Backend'den füzyon yöntemlerini yükler
+ * Load fusion methods from backend
  */
 async function loadMethods() {
     try {
@@ -48,7 +48,7 @@ async function loadMethods() {
         const data = await response.json();
         availableMethods = data.methods;
         
-        // Yöntemleri grid'e ekle
+        // Add methods to grid
         const methodGrid = document.getElementById('methodGrid');
         methodGrid.innerHTML = '';
         
@@ -57,15 +57,15 @@ async function loadMethods() {
             methodGrid.appendChild(card);
         });
         
-        console.log(`${availableMethods.length} yöntem yüklendi`);
+        console.log(`${availableMethods.length} methods loaded`);
     } catch (error) {
-        console.error('Yöntemler yüklenirken hata:', error);
-        alert('Backend sunucusuna bağlanılamadı. Lütfen backend\'in çalıştığından emin olun.');
+        console.error('Error loading methods:', error);
+        alert('Could not connect to backend server. Please ensure the backend is running.');
     }
 }
 
 /**
- * Yöntem kartı oluşturur
+ * Create a method card
  */
 function createMethodCard(method) {
     const card = document.createElement('div');
@@ -84,39 +84,39 @@ function createMethodCard(method) {
         </div>
     `;
     
-    card.dataset.methodId = method.id;  // ID'yi data attribute olarak sakla
+    card.dataset.methodId = method.id;
     card.addEventListener('click', () => selectMethod(method.id, card));
     
     return card;
 }
 
 /**
- * Yöntem seçimi yapar
+ * Select a method
  */
 function selectMethod(methodId, clickedCard) {
     selectedMethod = methodId;
     
-    // Tüm kartlardan selected class'ını kaldır
+    // Remove selected class from all cards
     document.querySelectorAll('.method-card').forEach(card => {
         card.classList.remove('selected');
     });
     
-    // Tıklanan karta selected class ekle
+    // Add selected class to clicked card
     if (clickedCard) {
         clickedCard.classList.add('selected');
     } else {
-        // Eğer card gönderilmemişse, ID'ye göre bul
+        // If card not provided, find by ID
         const card = document.querySelector(`[data-method-id="${methodId}"]`);
         if (card) {
             card.classList.add('selected');
         }
     }
     
-    console.log(`Yöntem seçildi: ${methodId}`);
+    console.log(`Method selected: ${methodId}`);
 }
 
 /**
- * Görüntü yükleme işlemi
+ * Handle image upload
  */
 function handleImageUpload(event, imageId) {
     const file = event.target.files[0];
@@ -127,35 +127,35 @@ function handleImageUpload(event, imageId) {
     reader.onload = function(e) {
         const imgData = e.target.result;
         
-        // Global değişkene kaydet
+        // Save to global variable
         if (imageId === 'image1') {
             image1Data = imgData;
         } else {
             image2Data = imgData;
         }
         
-        // Preview göster
+        // Show preview
         const previewId = imageId === 'image1' ? 'preview1' : 'preview2';
         const preview = document.getElementById(previewId);
         preview.innerHTML = `<img src="${imgData}" alt="Preview">`;
         
-        console.log(`${imageId} yüklendi`);
+        console.log(`${imageId} uploaded`);
     };
     
     reader.readAsDataURL(file);
 }
 
 /**
- * Füzyon işlemini başlatır
+ * Initiate fusion process
  */
 async function performFusion() {
-    // Kontroller
+    // Validation
     if (!image1Data || !image2Data) {
-        alert('Lütfen her iki görüntüyü de yükleyin!');
+        alert('Please upload both images!');
         return;
     }
     
-    // Loading göster
+    // Show loading
     document.getElementById('fusionBtn').disabled = true;
     document.getElementById('loadingIndicator').classList.remove('hidden');
     document.getElementById('resultsSection').classList.add('hidden');
@@ -163,24 +163,24 @@ async function performFusion() {
     const batchMode = document.getElementById('batchModeCheckbox').checked;
     
     if (batchMode) {
-        // Toplu test modu
+        // Batch mode
         await performBatchFusion();
     } else {
-        // Tekli füzyon
+        // Single fusion
         await performSingleFusion(selectedMethod);
     }
     
-    // Loading gizle
+    // Hide loading
     document.getElementById('fusionBtn').disabled = false;
     document.getElementById('loadingIndicator').classList.add('hidden');
 }
 
 /**
- * Tekli füzyon işlemi
+ * Single fusion operation
  */
 async function performSingleFusion(method) {
     try {
-        console.log(`Füzyon başlatıldı: ${method}`);
+        console.log(`Fusion started: ${method}`);
         
         const response = await fetch(`${API_URL}/fusion`, {
             method: 'POST',
@@ -191,7 +191,7 @@ async function performSingleFusion(method) {
                 image1: image1Data,
                 image2: image2Data,
                 method: method,
-                params: {}  // Varsayılan parametreler
+                params: {}  // Default parameters
             })
         });
         
@@ -204,23 +204,23 @@ async function performSingleFusion(method) {
         if (data.success) {
             displayResults(data);
         } else {
-            alert(`Hata: ${data.error}`);
+            alert(`Error: ${data.error}`);
         }
         
     } catch (error) {
-        console.error('Füzyon hatası:', error);
-        alert('Füzyon işlemi sırasında hata oluştu!');
+        console.error('Fusion error:', error);
+        alert('Error occurred during fusion operation!');
     }
 }
 
 /**
- * Toplu test modu - tüm yöntemleri test eder
+ * Batch mode - tests all methods
  */
 async function performBatchFusion() {
     const allResults = [];
     
     for (const method of availableMethods) {
-        console.log(`Toplu test: ${method.name}`);
+        console.log(`Batch test: ${method.name}`);
         
         try {
             const response = await fetch(`${API_URL}/fusion`, {
@@ -237,52 +237,56 @@ async function performBatchFusion() {
             });
             
             const data = await response.json();
+            console.log(`[BATCH] ${method.name} response:`, data);
             
             if (data.success) {
+                console.log(`[BATCH] ${method.name} analysis:`, data.analysis);
                 allResults.push({
                     method: method.name,
                     metrics: data.metrics,
-                    fusedImage: data.fused_image
+                    fusedImage: data.fused_image,
+                    analysis: data.analysis
                 });
             }
             
         } catch (error) {
-            console.error(`${method.name} için hata:`, error);
+            console.error(`${method.name} error:`, error);
         }
     }
     
-    // Batch sonuçlarını göster
+    console.log('[BATCH] Final allResults:', allResults);
+    // Display batch results
     displayBatchResults(allResults);
 }
 
 /**
- * Füzyon sonuçlarını görüntüler
+ * Display fusion results
  */
 function displayResults(data) {
-    console.log('[DEBUG] displayResults çalıştı');
-    // Sonuç bölümünü göster
+    console.log('[DEBUG] displayResults executed');
+    // Show results section
     document.getElementById('resultsSection').classList.remove('hidden');
     
-    // Füzyon edilmiş görüntüyü göster
+    // Show fused image
     const fusedPreview = document.getElementById('fusedImagePreview');
     fusedPreview.innerHTML = `<img src="data:image/png;base64,${data.fused_image}" alt="Fused Image">`;
     
-    // Metrikleri göster
+    // Display metrics
     displayMetrics(data.metrics);
     
-    // Chart çiz
+    // Draw chart
     drawMetricsChart(data.metrics);
     
-    // AI Analizi göster
+    // Display AI Analysis
     const aiText = data.analysis || data.ai_analysis || data.aiResult || data.ai_result;
-    console.log('[DEBUG] AI text değeri:', aiText);
-    console.log('[DEBUG] AI text tipi:', typeof aiText);
+    console.log('[DEBUG] AI text value:', aiText);
+    console.log('[DEBUG] AI text type:', typeof aiText);
     if (aiText) {
-        console.log('[DEBUG] displayAIAnalysis çağrılıyor');
+        console.log('[DEBUG] Calling displayAIAnalysis');
         displayAIAnalysis(aiText);
     } else {
-        console.log('[DEBUG] AI analizi boş, fallback mesaj gösteriliyor');
-        displayAIAnalysis('Yapay zeka analizi henüz alınamadı.');
+        console.log('[DEBUG] AI analysis empty, showing fallback message');
+        displayAIAnalysis('AI analysis could not be retrieved.');
     }
     
     // Scroll to results
@@ -290,10 +294,10 @@ function displayResults(data) {
 }
 
 /**
- * AI Analizi gösterir
+ * Display AI Analysis
  */
 function displayAIAnalysis(analysis) {
-    console.log('[DEBUG] displayAIAnalysis başladı, analysis:', analysis);
+    console.log('[DEBUG] displayAIAnalysis started, analysis:', analysis);
     const aiAnalysisDiv = document.getElementById('aiAnalysis');
     
     if (!aiAnalysisDiv) {
@@ -392,35 +396,35 @@ function capitalizeKey(key) {
 }
 
 /**
- * Metrikleri kart olarak gösterir
+ * Display metrics as cards
  */
 function displayMetrics(metrics) {
     const metricsGrid = document.getElementById('metricsGrid');
     
     if (!metricsGrid) {
-        console.error('metricsGrid element bulunamadı!');
+        console.error('metricsGrid element not found!');
         return;
     }
     
     metricsGrid.innerHTML = '';
     
-    console.log('Metrikleri gösteriliyor:', metrics);
+    console.log('Displaying metrics:', metrics);
     
-    // Metrik tanımları
+    // Metric definitions
     const metricDefinitions = [
-        { key: 'psnr_avg', name: 'PSNR', unit: 'dB', description: 'Yüksek = İyi' },
-        { key: 'ssim_avg', name: 'SSIM', unit: '', description: 'Yüksek = İyi' },
-        { key: 'mse_avg', name: 'MSE', unit: '', description: 'Düşük = İyi' },
-        { key: 'mi_avg', name: 'MI', unit: '', description: 'Yüksek = İyi' },
-        { key: 'entropy', name: 'Entropy', unit: 'bits', description: 'Yüksek = İyi' },
-        { key: 'sf', name: 'SF', unit: '', description: 'Yüksek = İyi' }
+        { key: 'psnr_avg', name: 'PSNR', unit: 'dB', description: 'Higher = Better' },
+        { key: 'ssim_avg', name: 'SSIM', unit: '', description: 'Higher = Better' },
+        { key: 'mse_avg', name: 'MSE', unit: '', description: 'Lower = Better' },
+        { key: 'mi_avg', name: 'MI', unit: '', description: 'Higher = Better' },
+        { key: 'entropy', name: 'Entropy', unit: 'bits', description: 'Higher = Better' },
+        { key: 'sf', name: 'SF', unit: '', description: 'Higher = Better' }
     ];
     
     metricDefinitions.forEach(def => {
         const value = metrics[def.key];
         
         if (value === undefined || value === null) {
-            console.warn(`Metrik bulunamadı: ${def.key}`);
+            console.warn(`Metric not found: ${def.key}`);
             return;
         }
         
@@ -436,16 +440,16 @@ function displayMetrics(metrics) {
         metricsGrid.appendChild(card);
     });
     
-    console.log(`${metricsGrid.children.length} metrik kartı oluşturuldu`);
+    console.log(`${metricsGrid.children.length} metric cards created`);
 }
 
 /**
- * Metrik karşılaştırma chart'ı çizer
+ * Draw metrics comparison chart
  */
 function drawMetricsChart(metrics) {
     const ctx = document.getElementById('metricsChart').getContext('2d');
     
-    // Önceki chart varsa yok et
+    // Destroy previous chart if exists
     if (metricsChart) {
         metricsChart.destroy();
     }
@@ -575,6 +579,9 @@ function drawMetricsChart(metrics) {
  * Batch test sonuçlarını gösterir
  */
 function displayBatchResults(results) {
+    console.log('[DISPLAY_BATCH] displayBatchResults çağrıldı');
+    console.log('[DISPLAY_BATCH] Results count:', results.length);
+    
     // Sonuç bölümünü göster
     document.getElementById('resultsSection').classList.remove('hidden');
     
@@ -595,10 +602,17 @@ function displayBatchResults(results) {
         fusedPreview.appendChild(container);
     });
     
-    // Toplu test metrikleri tablosunu göster
-    displayBatchMetricsTable(results);
+    // Display simple AI Analysis version
+    console.log('[DISPLAY_BATCH] Calling displaySimpleAIAnalysis...');
+    displaySimpleAIAnalysis(results);
+    console.log('[DISPLAY_BATCH] displaySimpleAIAnalysis completed');
     
-    // Karşılaştırmalı chart çiz
+    // Display batch metrics table
+    console.log('[DISPLAY_BATCH] Calling displayBatchMetricsTable...');
+    displayBatchMetricsTable(results);
+    console.log('[DISPLAY_BATCH] displayBatchMetricsTable completed');
+    
+    // Draw comparison chart
     drawComparisonChart(results);
     
     // Scroll to results
@@ -606,13 +620,84 @@ function displayBatchResults(results) {
 }
 
 /**
- * Toplu test için metrik karşılaştırma tablosu
+ * AI Analysis - Simple Version (Add directly to aiAnalysis div)
+ */
+function displaySimpleAIAnalysis(results) {
+    console.log('[SIMPLE_AI] Started');
+    
+    const aiAnalysisDiv = document.getElementById('aiAnalysis');
+    if (!aiAnalysisDiv) {
+        console.error('[SIMPLE_AI] aiAnalysis div not found!');
+        return;
+    }
+    
+    console.log('[SIMPLE_AI] aiAnalysis div found');
+    
+    const analysisResults = results.filter(r => r.analysis && r.analysis !== null);
+    console.log('[SIMPLE_AI] Methods with analysis:', analysisResults.length);
+    
+    if (analysisResults.length === 0) {
+        console.log('[SIMPLE_AI] No analysis');
+        return;
+    }
+    
+    // Clear content
+    aiAnalysisDiv.innerHTML = '';
+    console.log('[SIMPLE_AI] aiAnalysis div cleared');
+    
+    // Create div for each analysis
+    analysisResults.forEach((result, idx) => {
+        console.log(`[SIMPLE_AI] Adding ${result.method} analysis (${idx + 1}/${analysisResults.length})`);
+        
+        const card = document.createElement('div');
+        card.style.cssText = `
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        `;
+        
+        // Title
+        const title = document.createElement('h4');
+        title.textContent = `📊 ${result.method}`;
+        title.style.cssText = 'margin: 0 0 15px 0; font-size: 18px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px;';
+        card.appendChild(title);
+        
+        // Content
+        const content = document.createElement('div');
+        content.style.cssText = 'font-size: 14px; line-height: 1.6;';
+        
+        if (typeof result.analysis === 'object' && result.analysis !== null) {
+            let html = '';
+            Object.entries(result.analysis).forEach(([key, value]) => {
+                const displayValue = typeof value === 'object'
+                    ? JSON.stringify(value).substring(0, 100) + '...'
+                    : String(value).substring(0, 200);
+                html += `<p style="margin: 8px 0;"><strong>${capitalizeKey(key)}:</strong> ${escapeHtml(displayValue)}</p>`;
+            });
+            content.innerHTML = html;
+        } else {
+            content.textContent = String(result.analysis);
+        }
+        
+        card.appendChild(content);
+        aiAnalysisDiv.appendChild(card);
+        console.log(`[SIMPLE_AI] ${result.method} added`);
+    });
+    
+    console.log('[SIMPLE_AI] Completed');
+}
+
+/**
+ * Batch test metrics comparison table
  */
 function displayBatchMetricsTable(results) {
     const metricsGrid = document.getElementById('metricsGrid');
     metricsGrid.innerHTML = '';
     
-    // Her yöntem için ayrı metrik kartları göster
+    // Show separate metric cards for each method
     results.forEach((result, index) => {
         // Yöntem başlığı
         const methodTitle = document.createElement('h3');
@@ -717,7 +802,7 @@ function displayBatchMetricsTable(results) {
 }
 
 /**
- * Yöntemler arası karşılaştırma chart'ı
+ * Methods comparison chart
  */
 function drawComparisonChart(results) {
     const ctx = document.getElementById('metricsChart').getContext('2d');
