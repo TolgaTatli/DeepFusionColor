@@ -19,16 +19,16 @@
         <div class="main-content">
             <!-- Upload Section -->
             <section class="upload-section">
-                <h2>📁 Görüntü Yükleme</h2>
+                <h2>📁 Image Upload</h2>
                 <div class="upload-container">
                     <div class="upload-box">
-                        <h3>Görüntü 1 (IR/Thermal)</h3>
+                        <h3>Image 1 (IR/Thermal)</h3>
                         <input type="file" id="image1Input" accept="image/*">
                         <div id="preview1" class="image-preview"></div>
                     </div>
                     
                     <div class="upload-box">
-                        <h3>Görüntü 2 (Visible)</h3>
+                        <h3>Image 2 (Visible)</h3>
                         <input type="file" id="image2Input" accept="image/*">
                         <div id="preview2" class="image-preview"></div>
                     </div>
@@ -37,7 +37,7 @@
 
             <!-- Method Selection -->
             <section class="method-section">
-                <h2>🧪 Füzyon Yöntemi Seçimi</h2>
+                <h2>🧪 Fusion Method Selection</h2>
                 <div class="method-grid" id="methodGrid">
                     <!-- JavaScript ile doldurulacak -->
                 </div>
@@ -46,35 +46,35 @@
             <!-- Action Button -->
             <section class="action-section">
                 <button id="fusionBtn" class="fusion-btn">
-                    🚀 Füzyon Yap
+                    🚀 Perform Fusion
                 </button>
                 <div id="loadingIndicator" class="loading hidden">
                     <div class="spinner"></div>
-                    <p>Füzyon işleniyor...</p>
+                    <p>Processing fusion...</p>
                 </div>
             </section>
 
             <!-- Results Section -->
             <section class="results-section hidden" id="resultsSection">
-                <h2>📊 Füzyon Sonuçları</h2>
+                <h2>📊 Fusion Results</h2>
                 
                 <!-- Fused Image -->
                 <div class="result-image-container">
-                    <h3>Birleştirilmiş Görüntü</h3>
+                    <h3>Fused Image</h3>
                     <div id="fusedImagePreview" class="fused-image-preview"></div>
                 </div>
 
                 <!-- Metrics -->
                 <div class="metrics-container">
-                    <h3>Kalite Metrikleri</h3>
+                    <h3>Quality Metrics</h3>
                     <div class="metrics-grid" id="metricsGrid">
-                        <!-- JavaScript ile doldurulacak -->
+                        <!-- Will be filled by JavaScript -->
                     </div>
                 </div>
 
                 <!-- Chart -->
                 <div class="chart-container">
-                    <h3>Metrik Karşılaştırması</h3>
+                    <h3>Metric Comparison</h3>
                     <canvas id="metricsChart"></canvas>
                 </div>
 
@@ -82,18 +82,18 @@
                 <div class="ai-analysis-container">
                     <h3>AI Analysis</h3>
                     <div id="aiAnalysis" class="ai-analysis">
-                        <!-- JavaScript ile doldurulacak -->
+                        <!-- Will be filled by JavaScript -->
                     </div>
                 </div>
             </section>
 
             <!-- Batch Test Section -->
             <section class="batch-section">
-                <h2>🔄 Toplu Test (Batch Processing)</h2>
+                <h2>🔄 Batch Test (Batch Processing)</h2>
                 <div class="batch-controls">
                     <label>
                         <input type="checkbox" id="batchModeCheckbox">
-                        Toplu test modunu etkinleştir (tüm yöntemleri test et)
+                        Enable batch test mode (test all methods)
                     </label>
                 </div>
             </section>
@@ -101,7 +101,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>DeepFusionColor © 2026 | Bitirme Projesi</p>
+            <p>DeepFusionColor © 2026 | Capstone Project</p>
             <p>Yöntemler: DNN, CNN, Wavelet, LatentLRR, DenseFuse</p>
         </footer>
     </div>
