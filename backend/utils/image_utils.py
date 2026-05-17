@@ -215,3 +215,218 @@ def convert_to_uint8(image):
         image = (image - img_min) / (img_max - img_min) * 255
     
     return image.astype(np.uint8)
+
+
+# ============================================================================
+# YCbCr Color Space Conversion Functions for Colorized Fusion
+# ============================================================================
+
+def rgb_to_ycbcr(rgb_image):
+    """
+    RGB görüntüyü YCbCr renk uzayına çevirir
+    
+    YCbCr Açıklaması:
+    - Y: Luminance (parlaklık) - siyah-beyaz bilgisi
+    - Cb: Chrominance Blue (mavi renk farkı)
+    - Cr: Chrominance Red (kırmızı renk farkı)
+    
+    Parametreler:
+    ------------
+    rgb_image : numpy.ndarray
+        RGB format görüntü [H, W, 3] veya [0-1] veya [0-255] aralığında
+        
+    Returns:
+    -------
+    tuple : (Y, Cb, Cr)
+        Y: Luminance channel [H, W], float32, [0-1]
+        Cb: Chrominance Blue [H, W], float32, [0-1]
+        Cr: Chrominance Red [H, W], float32, [0-1]
+    """
+    # uint8 formatında ise float32'ye çevir
+    if rgb_image.dtype == np.uint8:
+        rgb_float = rgb_image.astype(np.float32) / 255.0
+    else:
+        rgb_float = rgb_image.astype(np.float32)
+        # Eğer [0, 1] değilse normalize et
+        if rgb_float.max() > 1.0:
+            rgb_float = rgb_float / 255.0
+    
+    # RGB to YCbCr dönüşümü (ITU-R BT.601 standardı)
+    R = rgb_float[:, :, 0]
+    G = rgb_float[:, :, 1]
+    B = rgb_float[:, :, 2]
+    
+    Y = 0.299 * R + 0.587 * G + 0.114 * B
+    Cb = -0.169 * R - 0.331 * G + 0.5 * B + 0.5
+    Cr = 0.5 * R - 0.419 * G - 0.081 * B + 0.5
+    
+    return Y.astype(np.float32), Cb.astype(np.float32), Cr.astype(np.float32)
+
+
+def ycbcr_to_rgb(Y, Cb, Cr):
+    """
+    YCbCr kanallarını RGB görüntüye çevirir
+    
+    Parametreler:
+    ------------
+    Y : numpy.ndarray
+        Luminance channel [H, W], float32, [0-1]
+    Cb : numpy.ndarray
+        Chrominance Blue [H, W], float32, [0-1]
+    Cr : numpy.ndarray
+        Chrominance Red [H, W], float32, [0-1]
+        
+    Returns:
+    -------
+    numpy.ndarray : RGB format görüntü [H, W, 3], float32, [0-1]
+    """
+    # Float32'ye çevir
+    Y = Y.astype(np.float32)
+    Cb = Cb.astype(np.float32)
+    Cr = Cr.astype(np.float32)
+    
+    # YCbCr to RGB dönüşümü (ITU-R BT.601 standardı)
+    R = Y + 1.402 * (Cr - 0.5)
+    G = Y - 0.344136 * (Cb - 0.5) - 0.714136 * (Cr - 0.5)
+    B = Y + 1.772 * (Cb - 0.5)
+    
+    # [0, 1] aralığına sınırla (clamp)
+    R = np.clip(R, 0, 1)
+    G = np.clip(G, 0, 1)
+    B = np.clip(B, 0, 1)
+    
+    # RGB görüntüsü oluştur [H, W, 3]
+    rgb_image = np.stack([R, G, B], axis=2)
+    
+    return rgb_image.astype(np.float32)
+
+
+def fuse_ycbcr(fused_luminance, original_rgb):
+    """
+    Füzyon edilmiş luminance ile orijinal RGB görüntünün renk kanallarını birleştirir
+    
+    Bu fonksiyon, füzyon ağının çıktısı olan luminance kanalını (siyah-beyaz),
+    orijinal RGB görüntüsünün renk bilgileriyle birleştirerek renkli çıktı oluşturur.
+    
+    Parametreler:
+    ------------
+    fused_luminance : numpy.ndarray
+        Füzyon ağının çıktısı - yalnız luminance [H, W], float32, [0-1]
+    original_rgb : numpy.ndarray
+        Orijinal RGB görüntü [H, W, 3], float32, [0-1]
+        
+    Returns:
+    -------
+    numpy.ndarray : Renklendirilmiş füzyon sonucu [H, W, 3], float32, [0-1]
+    """
+    # Orijinal RGB'den Cb ve Cr kanallarını çıkar
+    _, Cb, Cr = rgb_to_ycbcr(original_rgb)
+    
+    # Füzyon edilmiş luminance ile orijinal renk kanallarını birleştir
+    colorized_rgb = ycbcr_to_rgb(fused_luminance, Cb, Cr)
+    
+    return colorized_rgb
+
+
+# ============================================================================
+# PyTorch Tensor Utilities for YCbCr Conversion
+# ============================================================================
+
+def tensor_rgb_to_ycbcr(rgb_tensor):
+    """
+    PyTorch tensor formatında RGB'den YCbCr'a dönüşüm
+    
+    Parametreler:
+    ------------
+    rgb_tensor : torch.Tensor
+        Shape: [B, 3, H, W] (batch_size, channels, height, width)
+        Values: float32, [0-1] or [0-255]
+        
+    Returns:
+    -------
+    tuple : (Y, Cb, Cr)
+        Y: [B, 1, H, W] torch.Tensor
+        Cb: [B, 1, H, W] torch.Tensor
+        Cr: [B, 1, H, W] torch.Tensor
+    """
+    import torch
+    
+    # uint8 ise float32'ye çevir
+    if rgb_tensor.dtype == torch.uint8:
+        rgb_tensor = rgb_tensor.float() / 255.0
+    elif rgb_tensor.max() > 1.0:
+        rgb_tensor = rgb_tensor / 255.0
+    
+    # [B, 3, H, W] formatında olduğunu varsay
+    R = rgb_tensor[:, 0:1, :, :]  # [B, 1, H, W]
+    G = rgb_tensor[:, 1:2, :, :]
+    B = rgb_tensor[:, 2:3, :, :]
+    
+    # ITU-R BT.601 standardı
+    Y = 0.299 * R + 0.587 * G + 0.114 * B
+    Cb = -0.169 * R - 0.331 * G + 0.5 * B + 0.5
+    Cr = 0.5 * R - 0.419 * G - 0.081 * B + 0.5
+    
+    return Y, Cb, Cr
+
+
+def tensor_ycbcr_to_rgb(Y, Cb, Cr):
+    """
+    PyTorch tensor formatında YCbCr'dan RGB'ye dönüşüm
+    
+    Parametreler:
+    ------------
+    Y : torch.Tensor
+        Luminance [B, 1, H, W] float32, [0-1]
+    Cb : torch.Tensor
+        Chrominance Blue [B, 1, H, W] float32, [0-1]
+    Cr : torch.Tensor
+        Chrominance Red [B, 1, H, W] float32, [0-1]
+        
+    Returns:
+    -------
+    torch.Tensor : RGB görüntü [B, 3, H, W] float32, [0-1]
+    """
+    import torch
+    
+    # YCbCr to RGB conversion (ITU-R BT.601)
+    R = Y + 1.402 * (Cr - 0.5)
+    G = Y - 0.344136 * (Cb - 0.5) - 0.714136 * (Cr - 0.5)
+    B = Y + 1.772 * (Cb - 0.5)
+    
+    # [0, 1] aralığına sınırla
+    R = torch.clamp(R, 0, 1)
+    G = torch.clamp(G, 0, 1)
+    B = torch.clamp(B, 0, 1)
+    
+    # [B, 3, H, W] formatında birleştir
+    rgb_tensor = torch.cat([R, G, B], dim=1)
+    
+    return rgb_tensor
+
+
+def tensor_fuse_ycbcr(fused_luminance_tensor, original_rgb_tensor):
+    """
+    PyTorch tensor formatında füzyon edilmiş luminance ile renk birleştirmesi
+    
+    Bu fonksiyon, füzyon ağının çıktısı olan luminance tensörünü,
+    orijinal RGB tensörünün renk kanallarıyla birleştirerek renkli sonuç oluşturur.
+    
+    Parametreler:
+    ------------
+    fused_luminance_tensor : torch.Tensor
+        Füzyon ağının çıktısı [B, 1, H, W] float32, [0-1]
+    original_rgb_tensor : torch.Tensor
+        Orijinal RGB görüntü [B, 3, H, W] float32, [0-1]
+        
+    Returns:
+    -------
+    torch.Tensor : Renklendirilmiş sonuç [B, 3, H, W] float32, [0-1]
+    """
+    # Orijinal RGB'den Cb ve Cr çıkar
+    _, Cb, Cr = tensor_rgb_to_ycbcr(original_rgb_tensor)
+    
+    # Füzyon edilmiş luminance ile birleştir
+    colorized_tensor = tensor_ycbcr_to_rgb(fused_luminance_tensor, Cb, Cr)
+    
+    return colorized_tensor
